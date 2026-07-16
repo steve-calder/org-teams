@@ -29,6 +29,16 @@ npm run dev
 npm run dev -- --open
 ```
 
+In development mode, the app provisions a default account when it receives its first request:
+
+```text
+Email: dev@org-teams.local
+Password: password
+```
+
+These credentials are also shown on the development login page. The account is not provisioned and
+the credentials are not exposed by production builds.
+
 ## Building
 
 To create a production version of your app:

@@ -102,11 +102,116 @@ test('development administrator manages a Person and attaches standard login', a
 	const directAdminResponse = await standardUserPage.goto('/admin/people');
 	expect(directAdminResponse?.status()).toBe(403);
 	await expect(standardUserPage.getByText('Administrator access is required.')).toBeVisible();
+	for (const path of ['/admin/organizations', '/admin/teams']) {
+		const response = await standardUserPage.goto(path);
+		expect(response?.status()).toBe(403);
+	}
 	await standardUserContext.close();
 });
 
 test('anonymous visitors are redirected before admin data loads', async ({ page }) => {
-	await page.goto('/admin/people');
-	await expect(page).toHaveURL('/login');
+	for (const path of ['/admin/people', '/admin/organizations', '/admin/teams']) {
+		await page.goto(path);
+		await expect(page).toHaveURL('/login');
+	}
 	await expect(page.getByRole('link', { name: 'Admin' })).toHaveCount(0);
+});
+
+test('administrator defines, transfers, and safely deactivates Organizations and Teams', async ({
+	page
+}) => {
+	const suffix = `${Date.now()}-${test.info().workerIndex}`;
+	const sourceName = `Source Organization ${suffix}`;
+	const destinationName = `Destination Organization ${suffix}`;
+	const teamName = `Matrix Team ${suffix}`;
+	async function openOrganization(name: string) {
+		await page.goto(`/admin/organizations?search=${encodeURIComponent(name)}`);
+		await expect(page.getByLabel('Search')).toHaveValue(name);
+		await page.getByRole('link', { name }).click();
+	}
+
+	await loginAsDeveloper(page);
+	await page.getByRole('link', { name: 'Admin' }).click();
+	await page
+		.getByRole('navigation', { name: 'Administration' })
+		.getByRole('link', { name: 'Organizations' })
+		.click();
+
+	for (const name of [sourceName, destinationName]) {
+		await page.getByLabel('Organization name').fill(name);
+		await page.getByLabel('Description').fill(`Description for ${name}`);
+		await page.getByRole('button', { name: 'Create Organization' }).click();
+		await expect(page.getByRole('status')).toContainText('Organization created');
+	}
+
+	await page
+		.getByRole('navigation', { name: 'Administration' })
+		.getByRole('link', { name: 'Teams' })
+		.click();
+	await page.waitForLoadState('networkidle');
+	for (const owner of [sourceName, destinationName]) {
+		await page.getByLabel('Team name').fill(teamName);
+		await page.getByLabel('Owning Organization').selectOption({ label: owner });
+		await page.getByLabel('Team type').last().selectOption('product');
+		await page.getByLabel('Purpose').fill(`Owned by ${owner}`);
+		await page.getByRole('button', { name: 'Create Team' }).click();
+		await expect(page.getByRole('status')).toContainText('Team created');
+	}
+
+	await page.goto(
+		`/admin/teams?search=${encodeURIComponent(teamName)}&type=product&status=active`
+	);
+	await expect(page.getByLabel('Search')).toHaveValue(teamName);
+	await expect(page.locator('form[method="GET"] select[name="type"]')).toHaveValue('product');
+	await expect(page.locator('form[method="GET"] select[name="status"]')).toHaveValue('active');
+	await expect(page.getByRole('link', { name: teamName })).toHaveCount(2);
+
+	await openOrganization(sourceName);
+	const blockedResponsePromise = page.waitForResponse(
+		(response) =>
+			new URL(response.url()).pathname.startsWith('/admin/organizations/') &&
+			response.request().method() === 'POST'
+	);
+	await page.getByRole('button', { name: 'Deactivate Organization' }).click();
+	const blockedResponse = await blockedResponsePromise;
+	expect(blockedResponse.request().postData()).toContain('status=inactive');
+	expect(blockedResponse.status()).toBe(409);
+	await expect(page.getByRole('alert')).toContainText('Deactivate or transfer 1 active Team');
+	await page.getByRole('alert').getByRole('link', { name: teamName }).click();
+	await page.getByLabel('Purpose').fill(`Updated purpose ${suffix}`);
+	await page.getByRole('button', { name: 'Save Team' }).click();
+	await expect(page.getByRole('status')).toContainText('Team updated');
+
+	await page.getByLabel('Destination Organization').selectOption({ label: destinationName });
+	await page.getByLabel('Type TRANSFER to confirm').fill('TRANSFER');
+	await page.getByRole('button', { name: 'Transfer Team' }).click();
+	await expect(page.getByRole('status')).toContainText('Team transferred');
+	await expect(page.getByRole('link', { name: destinationName })).toBeVisible();
+	await expect(page.getByText('team.transferred')).toBeVisible();
+
+	await openOrganization(sourceName);
+	await page.getByRole('button', { name: 'Deactivate Organization' }).click();
+	await expect(page.getByRole('status')).toContainText('Organization updated');
+	await expect(page.getByRole('button', { name: 'Reactivate Organization' })).toBeVisible();
+
+	const sourceId = new URL(page.url()).pathname.split('/').at(-1)!;
+	const rejectedCreate = await page.evaluate(
+		async ({ organizationId, name }) => {
+			const response = await fetch('/admin/teams?/create', {
+				method: 'POST',
+				headers: { 'content-type': 'application/x-www-form-urlencoded' },
+				body: new URLSearchParams({ organizationId, name, type: 'other', status: 'active' })
+			});
+			return { status: response.status, body: await response.text() };
+		},
+		{ organizationId: sourceId, name: `Rejected Team ${suffix}` }
+	);
+	expect(rejectedCreate.body).toContain('must be active');
+
+	await page.setViewportSize({ width: 320, height: 800 });
+	expect(
+		await page.evaluate(
+			() => document.documentElement.scrollWidth <= document.documentElement.clientWidth
+		)
+	).toBe(true);
 });

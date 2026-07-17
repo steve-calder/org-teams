@@ -9,9 +9,12 @@
 	<title>Login | Org Teams</title>
 </svelte:head>
 
-<main class="mx-auto flex min-h-screen max-w-md items-center px-6 py-16">
+<section
+	class="mx-auto flex w-full max-w-md items-center py-4 sm:py-10"
+	aria-labelledby="login-heading"
+>
 	<section class="w-full rounded-xl border border-slate-200 bg-white p-8 shadow-sm">
-		<h1 class="text-2xl font-semibold text-slate-950">Login</h1>
+		<h1 id="login-heading" class="text-2xl font-semibold text-slate-950">Login</h1>
 		<p class="mt-2 text-sm text-slate-600">Use your account email and password.</p>
 
 		{#if data.devCredentials}
@@ -74,4 +77,4 @@
 			</button>
 		</form>
 	</section>
-</main>
+</section>

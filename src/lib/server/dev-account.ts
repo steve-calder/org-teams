@@ -1,6 +1,8 @@
 import { dev } from '$app/environment';
 import { APIError } from 'better-auth/api';
+import { eq } from 'drizzle-orm';
 import { auth } from '$lib/server/auth';
+import { user } from '$lib/server/db/schema';
 
 export const DEV_CREDENTIALS = {
 	email: 'dev@org-teams.local',
@@ -31,9 +33,17 @@ async function createDevAccount(): Promise<void> {
 			error.status === 'UNPROCESSABLE_ENTITY' &&
 			error.body?.message === 'User already exists. Use another email.'
 		) {
+			await grantDevAdministrator();
 			return;
 		}
 
 		throw error;
 	}
+
+	await grantDevAdministrator();
+}
+
+async function grantDevAdministrator(): Promise<void> {
+	const { db } = await import('$lib/server/db');
+	await db.update(user).set({ role: 'admin' }).where(eq(user.email, DEV_CREDENTIALS.email));
 }

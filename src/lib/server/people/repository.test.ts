@@ -29,7 +29,7 @@ describe('ensurePersonForAuthUser', () => {
 	it('creates the initial Person for a preexisting authentication user', async () => {
 		const authUserId = await createAuthUser();
 
-		const created = await ensurePersonForAuthUser(authUserId);
+		const created = await ensurePersonForAuthUser(authUserId, 'Repository test user');
 
 		expect(created.authUserId).toBe(authUserId);
 		expect(created.id).toBeTypeOf('string');
@@ -38,8 +38,8 @@ describe('ensurePersonForAuthUser', () => {
 	it('returns the persisted Person when provisioning is repeated', async () => {
 		const authUserId = await createAuthUser();
 
-		const first = await ensurePersonForAuthUser(authUserId);
-		const second = await ensurePersonForAuthUser(authUserId);
+		const first = await ensurePersonForAuthUser(authUserId, 'Repository test user');
+		const second = await ensurePersonForAuthUser(authUserId, 'Repository test user');
 
 		expect(second.id).toBe(first.id);
 		const [result] = await db
@@ -53,8 +53,8 @@ describe('ensurePersonForAuthUser', () => {
 		const authUserId = await createAuthUser();
 
 		const [first, second] = await Promise.all([
-			ensurePersonForAuthUser(authUserId),
-			ensurePersonForAuthUser(authUserId)
+			ensurePersonForAuthUser(authUserId, 'Repository test user'),
+			ensurePersonForAuthUser(authUserId, 'Repository test user')
 		]);
 
 		expect(second.id).toBe(first.id);
@@ -62,9 +62,13 @@ describe('ensurePersonForAuthUser', () => {
 
 	it('rejects a duplicate authentication link', async () => {
 		const authUserId = await createAuthUser();
-		const existing = await ensurePersonForAuthUser(authUserId);
+		const existing = await ensurePersonForAuthUser(authUserId, 'Repository test user');
 
-		await expect(db.insert(person).values({ authUserId })).rejects.toThrow();
-		expect(await ensurePersonForAuthUser(authUserId)).toMatchObject({ id: existing.id });
+		await expect(
+			db.insert(person).values({ authUserId, displayName: 'Duplicate Person' })
+		).rejects.toThrow();
+		expect(await ensurePersonForAuthUser(authUserId, 'Repository test user')).toMatchObject({
+			id: existing.id
+		});
 	});
 });

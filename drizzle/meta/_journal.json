@@ -8,6 +8,13 @@
       "when": 1784065853557,
       "tag": "0000_elite_fallen_one",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1784249628401,
+      "tag": "0001_funny_the_fury",
+      "breakpoints": true
     }
   ]
 }

@@ -35,23 +35,34 @@
 				</span>
 			</a>
 
-			{#if data.authenticated}
-				<form method="POST" action={resolve('/logout')}>
-					<button
-						type="submit"
-						class="min-h-11 rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-800 shadow-sm hover:border-slate-400 hover:bg-slate-50 focus:ring-2 focus:ring-teal-600 focus:ring-offset-2 focus:outline-none"
+			<nav aria-label="Account navigation" class="flex shrink-0 items-center gap-2 sm:gap-3">
+				{#if data.isAdmin}
+					<a
+						href={resolve('/admin/people')}
+						class="inline-flex min-h-11 items-center rounded-md px-3 py-2 text-sm font-semibold text-teal-800 hover:bg-teal-50 focus:ring-2 focus:ring-teal-600 focus:ring-offset-2 focus:outline-none sm:px-4"
 					>
-						Logout
-					</button>
-				</form>
-			{:else}
-				<a
-					href={resolve('/login')}
-					class="inline-flex min-h-11 items-center rounded-md bg-teal-700 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-teal-800 focus:ring-2 focus:ring-teal-600 focus:ring-offset-2 focus:outline-none"
-				>
-					Login
-				</a>
-			{/if}
+						Admin
+					</a>
+				{/if}
+
+				{#if data.authenticated}
+					<form method="POST" action={resolve('/logout')}>
+						<button
+							type="submit"
+							class="min-h-11 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-800 shadow-sm hover:border-slate-400 hover:bg-slate-50 focus:ring-2 focus:ring-teal-600 focus:ring-offset-2 focus:outline-none sm:px-4"
+						>
+							Logout
+						</button>
+					</form>
+				{:else}
+					<a
+						href={resolve('/login')}
+						class="inline-flex min-h-11 items-center rounded-md bg-teal-700 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-teal-800 focus:ring-2 focus:ring-teal-600 focus:ring-offset-2 focus:outline-none"
+					>
+						Login
+					</a>
+				{/if}
+			</nav>
 		</div>
 	</header>
 

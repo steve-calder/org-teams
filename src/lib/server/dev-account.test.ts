@@ -22,7 +22,7 @@ describe('development account', () => {
 		const devUser = await db.query.user.findFirst({
 			where: eq(user.email, DEV_CREDENTIALS.email)
 		});
-		expect(devUser).toBeDefined();
+		expect(devUser).toMatchObject({ role: 'admin' });
 
 		const [accountCount] = await db
 			.select({ value: count() })

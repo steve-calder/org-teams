@@ -1,6 +1,7 @@
 import { env } from '$env/dynamic/private';
 import { betterAuth } from 'better-auth/minimal';
 import { drizzleAdapter } from 'better-auth/adapters/drizzle';
+import { admin } from 'better-auth/plugins';
 import { sveltekitCookies } from 'better-auth/svelte-kit';
 import { getRequestEvent } from '$app/server';
 import { db } from '$lib/server/db';
@@ -19,12 +20,13 @@ export const auth = betterAuth({
 		user: {
 			create: {
 				after: async (user) => {
-					await ensurePersonForAuthUser(user.id);
+					await ensurePersonForAuthUser(user.id, user.name);
 				}
 			}
 		}
 	},
 	plugins: [
+		admin(),
 		sveltekitCookies(getRequestEvent) // make sure this is the last plugin in the array
 	]
 });

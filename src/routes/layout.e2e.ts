@@ -7,6 +7,7 @@ test('anonymous routes share the branded shell and home navigation', async ({ pa
 	await expect(page.getByRole('main')).toHaveCount(1);
 	await expect(page.getByRole('link', { name: 'Org Teams home' })).toBeVisible();
 	await expect(page.getByRole('link', { name: 'Login' })).toBeVisible();
+	await expect(page.getByRole('link', { name: 'Admin' })).toHaveCount(0);
 	await expect(page.getByRole('button', { name: 'Logout' })).toHaveCount(0);
 	await expect(page.getByRole('heading', { name: 'Welcome to Org Teams' })).toBeVisible();
 	await expect(page.getByRole('heading', { name: 'Identity with purpose' })).toBeVisible();

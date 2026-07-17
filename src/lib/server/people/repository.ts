@@ -8,10 +8,13 @@ export async function findPersonByAuthUserId(authUserId: string): Promise<Person
 	});
 }
 
-export async function ensurePersonForAuthUser(authUserId: string): Promise<Person> {
+export async function ensurePersonForAuthUser(
+	authUserId: string,
+	displayName: string
+): Promise<Person> {
 	const [created] = await db
 		.insert(person)
-		.values({ authUserId })
+		.values({ authUserId, displayName })
 		.onConflictDoNothing({ target: person.authUserId })
 		.returning();
 

@@ -58,6 +58,20 @@ The shared header SHALL derive authentication state from server-resolved session
 - **WHEN** a visitor without a valid session views any page
 - **THEN** the header displays Login and does not display Logout
 
+### Requirement: Administrator navigation
+
+The shared header SHALL use server-resolved administrator authorization to display an Admin link to `/admin/people` only for authenticated administrators. Hiding the link SHALL NOT replace server-side authorization of admin routes.
+
+#### Scenario: Administrator views the header
+
+- **WHEN** an authenticated administrator views an application page
+- **THEN** the header displays an Admin link that navigates to `/admin/people`
+
+#### Scenario: Non-administrator views the header
+
+- **WHEN** an anonymous visitor or authenticated non-administrator views an application page
+- **THEN** the header does not display the Admin link
+
 ### Requirement: Default-route welcome content
 
 The default route SHALL replace framework starter content with a concise Org Teams welcome page containing a clear product heading, a brief introductory statement, and a small set of readable feature highlights. The feature highlights SHALL be informational and SHALL NOT imply that unavailable product functions can already be used.

@@ -1,7 +1,7 @@
 import { and, asc, count, eq, ilike, isNotNull, isNull, or, sql, type SQL } from 'drizzle-orm';
 import { auth } from '$lib/server/auth';
 import { db } from '$lib/server/db';
-import { person, user, type Person } from '$lib/server/db/schema';
+import { person, team, user, type Person } from '$lib/server/db/schema';
 import { writeAdminAudit } from './audit';
 
 export type LoginFilter = 'all' | 'active' | 'disabled' | 'none';
@@ -23,6 +23,15 @@ export interface PersonProfileInput {
 	employeeIdentifier?: string | null;
 	jobTitle?: string | null;
 	status?: 'active' | 'inactive';
+}
+
+export class PersonDeactivationBlockedError extends Error {
+	constructor(public readonly blockingTeams: { id: string; name: string }[]) {
+		super(
+			`Clear or reassign ${blockingTeams.length} active ${blockingTeams.length === 1 ? 'Team' : 'Teams'} managed by this Person before deactivating them.`
+		);
+		this.name = 'PersonDeactivationBlockedError';
+	}
 }
 
 function adminRoleCondition() {
@@ -226,8 +235,17 @@ export async function updatePerson(
 ): Promise<Person> {
 	const values = validatePersonProfile(input);
 	return db.transaction(async (tx) => {
+		await tx.execute(sql`select id from ${person} where id = ${personId} for update`);
 		const [current] = await tx.select().from(person).where(eq(person.id, personId)).limit(1);
 		if (!current) throw new Error('Person not found.');
+		if (current.status === 'active' && values.status === 'inactive') {
+			const blockingTeams = await tx
+				.select({ id: team.id, name: team.name })
+				.from(team)
+				.where(and(eq(team.managerPersonId, personId), eq(team.status, 'active')))
+				.orderBy(asc(team.name), asc(team.id));
+			if (blockingTeams.length) throw new PersonDeactivationBlockedError(blockingTeams);
+		}
 
 		if (current.authUserId && current.displayName !== values.displayName) {
 			await auth.api.adminUpdateUser({

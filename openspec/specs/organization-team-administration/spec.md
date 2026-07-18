@@ -61,7 +61,7 @@ The system SHALL allow an administrator to create and edit multiple Organization
 
 ### Requirement: Organization-owned Team definition
 
-The system SHALL allow an administrator to create and edit Teams that are each owned by exactly one existing Organization. A Team SHALL have immutable UUID identity, a required display name of at most 160 characters, an optional purpose of at most 2,000 characters, a controlled team type, an active or inactive lifecycle status, and timestamps. Team names SHALL be display values rather than unique identifiers, Team ownership SHALL change only through a dedicated confirmed transfer to another active Organization, and the administration experience SHALL provide no hard-delete operation.
+The system SHALL allow an administrator to create and edit Teams that are each owned by exactly one existing Organization. A Team SHALL have immutable UUID identity, a required display name of at most 160 characters, an optional purpose of at most 2,000 characters, a controlled team type, an active or inactive lifecycle status, and timestamps. Team names SHALL be display values rather than unique identifiers, Team ownership SHALL change only through a dedicated confirmed transfer to another active Organization, a Team with a parent or any children SHALL NOT be transferred until those relationships are cleared, and the administration experience SHALL provide no hard-delete operation.
 
 #### Scenario: Administrator creates a Team
 
@@ -85,8 +85,13 @@ The system SHALL allow an administrator to create and edit Teams that are each o
 
 #### Scenario: Administrator transfers a Team
 
-- **WHEN** an administrator confirms transfer of a Team to a different active Organization
-- **THEN** the system changes only the owning Organization while preserving the Team's UUID, definition, type, and lifecycle status
+- **WHEN** an administrator confirms transfer of a Team with no parent or children to a different active Organization
+- **THEN** the system changes only the owning Organization while preserving the Team's UUID, definition, type, lifecycle status, and manager assignment
+
+#### Scenario: Team hierarchy blocks transfer
+
+- **WHEN** an administrator attempts to transfer a Team that has a parent or one or more children
+- **THEN** the system rejects the transfer, preserves the current ownership and hierarchy, and identifies the blocking related Teams
 
 #### Scenario: Team transfer has an invalid destination
 
@@ -133,7 +138,7 @@ The administration console SHALL provide separate searchable, bounded, paginated
 
 ### Requirement: Organization and Team lifecycle integrity
 
-The system SHALL prevent an inactive Organization from owning an active Team. It SHALL reject active Team creation or reactivation under an inactive Organization and SHALL reject Organization deactivation while any owned Team remains active. These checks SHALL be transactional with Team creation, activation, transfer, and Organization deactivation.
+The system SHALL prevent an inactive Organization from owning an active Team. It SHALL reject active Team creation or reactivation under an inactive Organization, SHALL reject Organization deactivation while any owned Team remains active, SHALL require an active parent for an active child Team, and SHALL reject parent Team deactivation while it has any active direct or indirect child Team. These checks SHALL be transactional with Team creation, activation, hierarchy mutation, transfer, Team deactivation, and Organization deactivation.
 
 #### Scenario: Administrator creates a Team under an inactive Organization
 
@@ -145,6 +150,21 @@ The system SHALL prevent an inactive Organization from owning an active Team. It
 - **WHEN** an administrator attempts to change an inactive Team to active while its Organization is inactive
 - **THEN** the system rejects the lifecycle change and preserves the inactive Team
 
+#### Scenario: Administrator assigns an inactive parent
+
+- **WHEN** an administrator attempts to assign an inactive Team as the parent of an active Team
+- **THEN** the system rejects the relationship and preserves the existing hierarchy
+
+#### Scenario: Active descendants block Team deactivation
+
+- **WHEN** an administrator attempts to deactivate a Team that has any active descendant Team
+- **THEN** the system rejects the lifecycle change, preserves the active parent Team, and identifies the blocking descendants
+
+#### Scenario: Administrator deactivates a leaf Team
+
+- **WHEN** an administrator deactivates a Team with no active descendants
+- **THEN** the system makes that Team inactive without silently clearing its parent, manager, or inactive child relationships
+
 #### Scenario: Administrator resolves blocking Teams
 
 - **WHEN** an administrator inactivates every active Team owned by an Organization or transfers them to other active Organizations and retries deactivation
@@ -152,7 +172,7 @@ The system SHALL prevent an inactive Organization from owning an active Team. It
 
 #### Scenario: Concurrent lifecycle mutation would violate integrity
 
-- **WHEN** concurrent Team creation, activation, transfer, or Organization deactivation would leave an active Team under an inactive Organization
+- **WHEN** concurrent Team creation, activation, hierarchy mutation, transfer, Team deactivation, or Organization deactivation would leave an active Team under an inactive Organization or parent Team
 - **THEN** the system serializes or rejects the conflicting mutation and preserves a valid final state
 
 ### Requirement: Administrative audit history

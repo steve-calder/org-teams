@@ -9,20 +9,40 @@ vi.mock('$lib/server/auth', () => ({
 }));
 
 const { db } = await import('$lib/server/db');
-const { adminAuditEvent, person, user } = await import('$lib/server/db/schema');
-const { createPerson, listPeople, updatePerson } = await import('./people');
+const { adminAuditEvent, organization, person, team, user } = await import('$lib/server/db/schema');
+const { createOrganization } = await import('./organizations');
+const { assignTeamManager } = await import('./team-hierarchy');
+const { createTeam } = await import('./teams');
+const { createPerson, listPeople, PersonDeactivationBlockedError, updatePerson } =
+	await import('./people');
 const { sanitizeAuditMetadata } = await import('./audit');
 
 const personIds: string[] = [];
 const userIds: string[] = [];
+const organizationIds: string[] = [];
+const teamIds: string[] = [];
 
 afterEach(async () => {
 	adminUpdateUser.mockReset();
+	if (teamIds.length) {
+		await db.delete(adminAuditEvent).where(inArray(adminAuditEvent.targetTeamId, teamIds));
+		await db
+			.update(team)
+			.set({ parentTeamId: null, managerPersonId: null })
+			.where(inArray(team.id, teamIds));
+		await db.delete(team).where(inArray(team.id, teamIds.splice(0)));
+	}
 	if (personIds.length) {
 		await db.delete(adminAuditEvent).where(inArray(adminAuditEvent.targetPersonId, personIds));
 		await db.delete(person).where(inArray(person.id, personIds.splice(0)));
 	}
 	if (userIds.length) await db.delete(user).where(inArray(user.id, userIds.splice(0)));
+	if (organizationIds.length) {
+		await db
+			.delete(adminAuditEvent)
+			.where(inArray(adminAuditEvent.targetOrganizationId, organizationIds));
+		await db.delete(organization).where(inArray(organization.id, organizationIds.splice(0)));
+	}
 });
 
 async function createAuthUser(role = 'user', banned = false) {
@@ -136,5 +156,68 @@ describe('Person administration services', () => {
 				object: { nested: 'ignored' }
 			})
 		).toEqual({ email: 'safe@example.test' });
+	});
+
+	it('blocks deactivation while the Person manages an active Team and succeeds after resolution', async () => {
+		const manager = await createPerson({ displayName: 'Lifecycle Manager' }, 'actor-id');
+		personIds.push(manager.id);
+		const owner = await createOrganization({ name: 'Managed Team Owner' }, 'actor-id');
+		organizationIds.push(owner.id);
+		const managedTeam = await createTeam(
+			{ organizationId: owner.id, name: 'Managed Team', type: 'functional' },
+			'actor-id'
+		);
+		teamIds.push(managedTeam.id);
+		await assignTeamManager(managedTeam.id, manager.id, 'actor-id');
+
+		await expect(
+			updatePerson(
+				manager.id,
+				{ displayName: manager.displayName, status: 'inactive' },
+				'actor-id',
+				new Headers()
+			)
+		).rejects.toMatchObject({
+			name: PersonDeactivationBlockedError.name,
+			blockingTeams: [{ id: managedTeam.id, name: managedTeam.name }]
+		});
+		await assignTeamManager(managedTeam.id, null, 'actor-id');
+		expect(
+			await updatePerson(
+				manager.id,
+				{ displayName: manager.displayName, status: 'inactive' },
+				'actor-id',
+				new Headers()
+			)
+		).toMatchObject({ status: 'inactive' });
+	});
+
+	it('serializes manager assignment against Person deactivation', async () => {
+		const manager = await createPerson({ displayName: 'Concurrent Manager' }, 'actor-id');
+		personIds.push(manager.id);
+		const owner = await createOrganization({ name: 'Concurrent Manager Owner' }, 'actor-id');
+		organizationIds.push(owner.id);
+		const managedTeam = await createTeam(
+			{ organizationId: owner.id, name: 'Concurrent Managed Team', type: 'functional' },
+			'actor-id'
+		);
+		teamIds.push(managedTeam.id);
+
+		await Promise.allSettled([
+			assignTeamManager(managedTeam.id, manager.id, 'actor-id'),
+			updatePerson(
+				manager.id,
+				{ displayName: manager.displayName, status: 'inactive' },
+				'actor-id',
+				new Headers()
+			)
+		]);
+		const [storedPerson, storedTeam] = await Promise.all([
+			db.query.person.findFirst({ where: eq(person.id, manager.id) }),
+			db.query.team.findFirst({ where: eq(team.id, managedTeam.id) })
+		]);
+		expect(storedPerson?.status === 'inactive' && storedTeam?.managerPersonId === manager.id).toBe(
+			false
+		);
 	});
 });

@@ -1,6 +1,6 @@
 import { fail } from '@sveltejs/kit';
 import { requireAdmin } from '$lib/server/admin/authorization';
-import { updatePerson } from '$lib/server/admin/people';
+import { PersonDeactivationBlockedError, updatePerson } from '$lib/server/admin/people';
 import type { Actions } from './$types';
 
 export const actions: Actions = {
@@ -21,9 +21,16 @@ export const actions: Actions = {
 				request.headers
 			);
 			return { success: true };
-		} catch (error) {
+		} catch (caught) {
+			if (caught instanceof PersonDeactivationBlockedError) {
+				return fail(409, {
+					message: caught.message,
+					blockingTeams: caught.blockingTeams
+				});
+			}
 			return fail(400, {
-				message: error instanceof Error ? error.message : 'Unable to update Person.'
+				message: caught instanceof Error ? caught.message : 'Unable to update Person.',
+				blockingTeams: [] as { id: string; name: string }[]
 			});
 		}
 	}

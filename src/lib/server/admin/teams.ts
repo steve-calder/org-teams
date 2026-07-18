@@ -1,4 +1,4 @@
-import { and, asc, count, eq, ilike, or, sql, type SQL } from 'drizzle-orm';
+import { and, asc, count, eq, ilike, or, type SQL } from 'drizzle-orm';
 import { db } from '$lib/server/db';
 import {
 	organization,
@@ -9,6 +9,7 @@ import {
 	type TeamType
 } from '$lib/server/db/schema';
 import { writeAdminAudit } from './audit';
+import { lockOrganizationStructure } from './team-hierarchy';
 
 export const TEAM_TYPE_OPTIONS: readonly { value: TeamType; label: string }[] = [
 	{ value: 'department', label: 'Department' },
@@ -51,6 +52,22 @@ export interface TeamProfileInput {
 
 export interface CreateTeamInput extends TeamProfileInput {
 	organizationId: string;
+}
+
+export class TeamTransferBlockedError extends Error {
+	constructor(public readonly blockingTeams: { id: string; name: string }[]) {
+		super("Clear this Team's parent and child relationships before transferring it.");
+		this.name = 'TeamTransferBlockedError';
+	}
+}
+
+export class TeamDeactivationBlockedError extends Error {
+	constructor(public readonly blockingTeams: { id: string; name: string }[]) {
+		super(
+			`Deactivate or reparent ${blockingTeams.length} active descendant ${blockingTeams.length === 1 ? 'Team' : 'Teams'} before deactivating this Team.`
+		);
+		this.name = 'TeamDeactivationBlockedError';
+	}
 }
 
 export function validateTeamProfile(input: TeamProfileInput) {
@@ -139,7 +156,7 @@ async function lockOrganization(
 	tx: Parameters<Parameters<typeof db.transaction>[0]>[0],
 	organizationId: string
 ) {
-	await tx.execute(sql`select id from ${organization} where id = ${organizationId} for update`);
+	await lockOrganizationStructure(tx, organizationId);
 	const [record] = await tx
 		.select()
 		.from(organization)
@@ -178,14 +195,65 @@ export async function updateTeam(
 ): Promise<Team> {
 	const values = validateTeamProfile(input);
 	return db.transaction(async (tx) => {
-		await tx.execute(sql`select id from ${team} where id = ${teamId} for update`);
+		const [initial] = await tx.select().from(team).where(eq(team.id, teamId)).limit(1);
+		if (!initial) throw new Error('Team not found.');
+		await lockOrganizationStructure(tx, initial.organizationId);
 		const [current] = await tx.select().from(team).where(eq(team.id, teamId)).limit(1);
 		if (!current) throw new Error('Team not found.');
+		if (current.organizationId !== initial.organizationId) {
+			throw new Error('Team ownership changed; retry the operation.');
+		}
 		if (values.status === 'active') {
-			const owner = await lockOrganization(tx, current.organizationId);
+			const [owner] = await tx
+				.select()
+				.from(organization)
+				.where(eq(organization.id, current.organizationId))
+				.limit(1);
+			if (!owner) throw new Error('Organization not found.');
 			if (owner.status !== 'active') {
 				throw new Error('The owning Organization must be active before activating this Team.');
 			}
+			if (current.parentTeamId) {
+				const [parent] = await tx
+					.select({ id: team.id, status: team.status })
+					.from(team)
+					.where(
+						and(eq(team.id, current.parentTeamId), eq(team.organizationId, current.organizationId))
+					)
+					.limit(1);
+				if (!parent || parent.status !== 'active') {
+					throw new Error('An active Team requires an active parent Team.');
+				}
+			}
+		}
+		if (current.status === 'active' && values.status === 'inactive') {
+			const hierarchyRows = await tx
+				.select({
+					id: team.id,
+					name: team.name,
+					parentTeamId: team.parentTeamId,
+					status: team.status
+				})
+				.from(team)
+				.where(eq(team.organizationId, current.organizationId));
+			const descendantIds = new Set<string>();
+			const pending = [teamId];
+			while (pending.length) {
+				const parentId = pending.pop()!;
+				for (const row of hierarchyRows) {
+					if (row.parentTeamId === parentId && !descendantIds.has(row.id)) {
+						descendantIds.add(row.id);
+						pending.push(row.id);
+					}
+				}
+			}
+			const blockingTeams = hierarchyRows
+				.filter((row) => descendantIds.has(row.id) && row.status === 'active')
+				.map(({ id, name }) => ({ id, name }))
+				.sort(
+					(left, right) => left.name.localeCompare(right.name) || left.id.localeCompare(right.id)
+				);
+			if (blockingTeams.length) throw new TeamDeactivationBlockedError(blockingTeams);
 		}
 		const [updated] = await tx.update(team).set(values).where(eq(team.id, teamId)).returning();
 		await writeAdminAudit(tx, {
@@ -211,19 +279,20 @@ export async function transferTeam(
 ): Promise<Team> {
 	if (!confirmed) throw new Error('Confirm the Team transfer before continuing.');
 	return db.transaction(async (tx) => {
-		await tx.execute(sql`select id from ${team} where id = ${teamId} for update`);
-		const [current] = await tx.select().from(team).where(eq(team.id, teamId)).limit(1);
-		if (!current) throw new Error('Team not found.');
-		if (!destinationOrganizationId || destinationOrganizationId === current.organizationId) {
+		const [initial] = await tx.select().from(team).where(eq(team.id, teamId)).limit(1);
+		if (!initial) throw new Error('Team not found.');
+		if (!destinationOrganizationId || destinationOrganizationId === initial.organizationId) {
 			throw new Error('Select a different destination Organization.');
 		}
 
-		const organizationIds = [current.organizationId, destinationOrganizationId].sort();
-		await tx.execute(sql`
-			select id from ${organization}
-			where id = ${organizationIds[0]} or id = ${organizationIds[1]}
-			order by id for update
-		`);
+		const organizationIds = [initial.organizationId, destinationOrganizationId].sort();
+		for (const organizationId of organizationIds) {
+			await lockOrganizationStructure(tx, organizationId);
+		}
+		const [current] = await tx.select().from(team).where(eq(team.id, teamId)).limit(1);
+		if (!current || current.organizationId !== initial.organizationId) {
+			throw new Error('Team ownership changed; retry the operation.');
+		}
 		const lockedOrganizations = await tx
 			.select()
 			.from(organization)
@@ -232,6 +301,18 @@ export async function transferTeam(
 		if (!destination) throw new Error('Destination Organization not found.');
 		if (destination.status !== 'active')
 			throw new Error('Destination Organization must be active.');
+
+		const hierarchyRows = await tx
+			.select({ id: team.id, name: team.name, parentTeamId: team.parentTeamId })
+			.from(team)
+			.where(eq(team.organizationId, current.organizationId));
+		const blockingTeams = hierarchyRows
+			.filter((row) => row.id === current.parentTeamId || row.parentTeamId === current.id)
+			.map(({ id, name }) => ({ id, name }))
+			.sort(
+				(left, right) => left.name.localeCompare(right.name) || left.id.localeCompare(right.id)
+			);
+		if (blockingTeams.length) throw new TeamTransferBlockedError(blockingTeams);
 
 		const [updated] = await tx
 			.update(team)

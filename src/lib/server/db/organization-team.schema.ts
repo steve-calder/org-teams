@@ -1,5 +1,14 @@
 import { relations, sql } from 'drizzle-orm';
-import { check, index, pgTable, text, timestamp, uuid } from 'drizzle-orm/pg-core';
+import {
+	check,
+	index,
+	pgTable,
+	text,
+	timestamp,
+	uuid,
+	type AnyPgColumn
+} from 'drizzle-orm/pg-core';
+import { person } from './person.schema';
 
 export const LIFECYCLE_STATUSES = ['active', 'inactive'] as const;
 export type LifecycleStatus = (typeof LIFECYCLE_STATUSES)[number];
@@ -49,6 +58,14 @@ export const team = pgTable(
 		organizationId: uuid('organization_id')
 			.notNull()
 			.references(() => organization.id, { onDelete: 'restrict', onUpdate: 'restrict' }),
+		parentTeamId: uuid('parent_team_id').references((): AnyPgColumn => team.id, {
+			onDelete: 'restrict',
+			onUpdate: 'restrict'
+		}),
+		managerPersonId: uuid('manager_person_id').references(() => person.id, {
+			onDelete: 'restrict',
+			onUpdate: 'restrict'
+		}),
 		name: text('name').notNull(),
 		purpose: text('purpose'),
 		type: text('type').$type<TeamType>().notNull(),
@@ -61,6 +78,8 @@ export const team = pgTable(
 	},
 	(table) => [
 		index('team_organization_idx').on(table.organizationId),
+		index('team_parent_idx').on(table.parentTeamId),
+		index('team_manager_idx').on(table.managerPersonId),
 		index('team_name_idx').on(table.name, table.id),
 		index('team_status_idx').on(table.status),
 		index('team_type_idx').on(table.type),
@@ -82,10 +101,20 @@ export const organizationRelations = relations(organization, ({ many }) => ({
 	teams: many(team)
 }));
 
-export const teamRelations = relations(team, ({ one }) => ({
+export const teamRelations = relations(team, ({ one, many }) => ({
 	organization: one(organization, {
 		fields: [team.organizationId],
 		references: [organization.id]
+	}),
+	parent: one(team, {
+		fields: [team.parentTeamId],
+		references: [team.id],
+		relationName: 'teamHierarchy'
+	}),
+	children: many(team, { relationName: 'teamHierarchy' }),
+	manager: one(person, {
+		fields: [team.managerPersonId],
+		references: [person.id]
 	})
 }));
 

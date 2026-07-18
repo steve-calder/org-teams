@@ -1,6 +1,7 @@
 import { error, fail } from '@sveltejs/kit';
 import { listOrganizationAuditEvents } from '$lib/server/admin/audit';
 import { requireAdmin } from '$lib/server/admin/authorization';
+import { listOrganizationTeamHierarchy } from '$lib/server/admin/team-hierarchy';
 import {
 	getOrganizationAdminDetail,
 	OrganizationDeactivationBlockedError,
@@ -12,9 +13,14 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 	requireAdmin(locals);
 	const detail = await getOrganizationAdminDetail(params.organizationId);
 	if (!detail) error(404, 'Organization not found.');
+	const [hierarchy, auditEvents] = await Promise.all([
+		listOrganizationTeamHierarchy(params.organizationId),
+		listOrganizationAuditEvents(params.organizationId)
+	]);
 	return {
 		...detail,
-		auditEvents: await listOrganizationAuditEvents(params.organizationId)
+		hierarchy,
+		auditEvents
 	};
 };
 

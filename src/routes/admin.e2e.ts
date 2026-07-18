@@ -158,9 +158,7 @@ test('administrator defines, transfers, and safely deactivates Organizations and
 		await expect(page.getByRole('status')).toContainText('Team created');
 	}
 
-	await page.goto(
-		`/admin/teams?search=${encodeURIComponent(teamName)}&type=product&status=active`
-	);
+	await page.goto(`/admin/teams?search=${encodeURIComponent(teamName)}&type=product&status=active`);
 	await expect(page.getByLabel('Search')).toHaveValue(teamName);
 	await expect(page.locator('form[method="GET"] select[name="type"]')).toHaveValue('product');
 	await expect(page.locator('form[method="GET"] select[name="status"]')).toHaveValue('active');
@@ -214,4 +212,167 @@ test('administrator defines, transfers, and safely deactivates Organizations and
 			() => document.documentElement.scrollWidth <= document.documentElement.clientWidth
 		)
 	).toBe(true);
+});
+
+test('administrator builds a Team hierarchy and manages hierarchy-derived supervision safely', async ({
+	page
+}) => {
+	test.setTimeout(90_000);
+	const suffix = `${Date.now()}-${test.info().workerIndex}`;
+	const organizationName = `Hierarchy Organization ${suffix}`;
+	const destinationName = `Hierarchy Destination ${suffix}`;
+	const rootName = `Engineering ${suffix}`;
+	const childName = `Platform ${suffix}`;
+	const otherRootName = `Operations ${suffix}`;
+	const rootManagerName = `Engineering Manager ${suffix}`;
+	const childManagerName = `Platform Manager ${suffix}`;
+
+	async function createPerson(displayName: string) {
+		await page.goto('/admin/people');
+		const form = page.getByRole('heading', { name: 'Add a person without login' }).locator('..');
+		await form.getByLabel('Display name').fill(displayName);
+		await form.getByRole('button', { name: 'Create person' }).click();
+		await expect(page.getByRole('status')).toContainText('Person created');
+		await page.goto(`/admin/people?search=${encodeURIComponent(displayName)}`);
+		await page.getByRole('link', { name: displayName }).click();
+		await expect(page).toHaveURL(/\/admin\/people\/[^/]+$/);
+		return new URL(page.url()).pathname.split('/').at(-1)!;
+	}
+
+	async function createOrganization(name: string) {
+		await page.goto('/admin/organizations');
+		const form = page.getByRole('heading', { name: 'Add an Organization' }).locator('..');
+		await form.getByLabel('Organization name').fill(name);
+		await form.getByRole('button', { name: 'Create Organization' }).click();
+		await expect(page.getByRole('status')).toContainText('Organization created');
+	}
+
+	async function createTeam(name: string, owner: string) {
+		await page.goto('/admin/teams');
+		const form = page.getByRole('heading', { name: 'Add a Team' }).locator('..');
+		await form.getByLabel('Team name').fill(name);
+		await form.getByLabel('Owning Organization').selectOption({ label: owner });
+		await form.getByLabel('Team type').selectOption('functional');
+		await form.getByRole('button', { name: 'Create Team' }).click();
+		await expect(page.getByRole('status')).toContainText('Team created');
+	}
+
+	async function openTeam(name: string) {
+		await page.goto(`/admin/teams?search=${encodeURIComponent(name)}`);
+		await page.getByRole('link', { name }).click();
+		await expect(page).toHaveURL(/\/admin\/teams\/[^/]+$/);
+		return new URL(page.url()).pathname.split('/').at(-1)!;
+	}
+
+	await loginAsDeveloper(page);
+	const rootManagerId = await createPerson(rootManagerName);
+	const childManagerId = await createPerson(childManagerName);
+	await createOrganization(organizationName);
+	await createOrganization(destinationName);
+	await createTeam(rootName, organizationName);
+	await createTeam(childName, organizationName);
+	await createTeam(otherRootName, organizationName);
+
+	const rootId = await openTeam(rootName);
+	const rootManagerSelect = page.locator('select[name="managerPersonId"]');
+	await rootManagerSelect.selectOption({ label: rootManagerName });
+	await expect(rootManagerSelect).toHaveValue(rootManagerId);
+	await page.getByRole('button', { name: 'Update manager' }).click();
+	await expect(page.getByRole('status')).toContainText('Team manager updated');
+
+	const childId = await openTeam(childName);
+	await page.getByLabel('Parent Team').selectOption({ label: `${rootName} · active` });
+	await page.getByRole('button', { name: 'Update parent' }).click();
+	await expect(page.getByRole('status')).toContainText('Parent Team updated');
+	const childManagerSelect = page.locator('select[name="managerPersonId"]');
+	await childManagerSelect.selectOption({ label: childManagerName });
+	await expect(childManagerSelect).toHaveValue(childManagerId);
+	const managerResponsePromise = page.waitForResponse(
+		(response) =>
+			new URL(response.url()).pathname === `/admin/teams/${childId}` &&
+			response.request().method() === 'POST'
+	);
+	await page.getByRole('button', { name: 'Update manager' }).click();
+	const managerResponse = await managerResponsePromise;
+	expect(managerResponse.request().postData()).toContain(`managerPersonId=${childManagerId}`);
+	await expect(page.getByRole('status')).toContainText('Team manager updated');
+	await expect(page.getByText('Supervisor through parent Team:').locator('..')).toContainText(
+		rootManagerName
+	);
+
+	await page.goto(`/admin/organizations?search=${encodeURIComponent(organizationName)}`);
+	await page.getByRole('link', { name: organizationName }).click();
+	const hierarchy = page.getByRole('tree', { name: 'Team hierarchy' });
+	await expect(hierarchy.getByRole('link', { name: rootName })).toBeVisible();
+	await expect(hierarchy.getByRole('link', { name: childName })).toBeVisible();
+	await expect(hierarchy.getByRole('link', { name: otherRootName })).toBeVisible();
+
+	const cycleResult = await page.evaluate(
+		async ({ teamId, parentTeamId }) => {
+			const response = await fetch(`/admin/teams/${teamId}?/parent`, {
+				method: 'POST',
+				headers: { 'content-type': 'application/x-www-form-urlencoded' },
+				body: new URLSearchParams({ parentTeamId })
+			});
+			return { status: response.status, body: await response.text() };
+		},
+		{ teamId: rootId, parentTeamId: childId }
+	);
+	expect(cycleResult.body).toContain('cycle');
+
+	const selfSupervisionResult = await page.evaluate(
+		async ({ teamId, managerPersonId }) => {
+			const response = await fetch(`/admin/teams/${teamId}?/manager`, {
+				method: 'POST',
+				headers: { 'content-type': 'application/x-www-form-urlencoded' },
+				body: new URLSearchParams({ managerPersonId })
+			});
+			return { status: response.status, body: await response.text() };
+		},
+		{ teamId: childId, managerPersonId: rootManagerId }
+	);
+	expect(selfSupervisionResult.body).toContain('reporting chain');
+
+	await openTeam(rootName);
+	await page.getByRole('button', { name: 'Deactivate Team' }).click();
+	await expect(page.getByRole('alert')).toContainText('active descendant');
+	await expect(page.getByRole('alert').getByRole('link', { name: childName })).toBeVisible();
+
+	await page.goto(`/admin/people/${rootManagerId}/details`);
+	await page.getByLabel('Status').selectOption('inactive');
+	await page.getByRole('button', { name: 'Save details' }).click();
+	await expect(page.getByRole('alert')).toContainText('managed by this Person');
+	await expect(page.getByRole('alert').getByRole('link', { name: rootName })).toBeVisible();
+
+	await openTeam(childName);
+	await page.getByLabel('Destination Organization').selectOption({ label: destinationName });
+	await page.getByLabel('Type TRANSFER to confirm').fill('TRANSFER');
+	await page.getByRole('button', { name: 'Transfer Team' }).click();
+	await expect(page.getByRole('alert')).toContainText('parent and child relationships');
+	await expect(page.getByRole('alert').getByRole('link', { name: rootName })).toBeVisible();
+
+	await page.getByLabel('Parent Team').selectOption('');
+	await page.getByRole('button', { name: 'Update parent' }).click();
+	await expect(page.getByRole('status')).toContainText('Parent Team updated');
+	await page.getByLabel('Destination Organization').selectOption({ label: destinationName });
+	await page.getByLabel('Type TRANSFER to confirm').fill('TRANSFER');
+	await page.getByRole('button', { name: 'Transfer Team' }).click();
+	await expect(page.getByRole('status')).toContainText('Team transferred');
+
+	await openTeam(rootName);
+	await page.locator('select[name="managerPersonId"]').selectOption('');
+	await page.getByRole('button', { name: 'Update manager' }).click();
+	await page.goto(`/admin/people/${rootManagerId}/details`);
+	await page.getByLabel('Status').selectOption('inactive');
+	await page.getByRole('button', { name: 'Save details' }).click();
+	await expect(page.getByRole('status')).toContainText('Person details updated');
+
+	await page.setViewportSize({ width: 320, height: 800 });
+	await openTeam(childName);
+	expect(
+		await page.evaluate(
+			() => document.documentElement.scrollWidth <= document.documentElement.clientWidth
+		)
+	).toBe(true);
+	expect(childManagerId).toBeTruthy();
 });

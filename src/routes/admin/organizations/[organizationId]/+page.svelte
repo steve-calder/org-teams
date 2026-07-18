@@ -4,6 +4,31 @@
 	let { data, form }: { data: PageData; form: ActionData } = $props();
 </script>
 
+{#snippet hierarchyNodes(nodes: PageData['hierarchy']['roots'])}
+	<ul class="ml-4 border-l border-slate-200 pl-4" role="group">
+		{#each nodes as node (node.id)}
+			<li
+				class="py-2"
+				role="treeitem"
+				aria-selected="false"
+				aria-expanded={node.children.length ? true : undefined}
+			>
+				<div class="flex flex-wrap items-baseline justify-between gap-2">
+					<a
+						class="font-semibold text-teal-800 hover:underline"
+						href={resolve('/admin/teams/[teamId]', { teamId: node.id })}>{node.name}</a
+					>
+					<span class="text-xs text-slate-500">
+						<span class="capitalize">{node.status}</span>
+						· {node.manager ? `Managed by ${node.manager.displayName}` : 'No manager'}
+					</span>
+				</div>
+				{#if node.children.length}{@render hierarchyNodes(node.children)}{/if}
+			</li>
+		{/each}
+	</ul>
+{/snippet}
+
 <svelte:head><title>{data.organization.name} Admin | Org Teams</title></svelte:head>
 
 <section class="space-y-8">
@@ -93,19 +118,27 @@
 			class="rounded-xl border border-slate-200 bg-white p-6 shadow-sm"
 			aria-labelledby="organization-teams-heading"
 		>
-			<h2 id="organization-teams-heading" class="text-xl font-semibold">Teams</h2>
-			<ul class="mt-4 divide-y divide-slate-100 text-sm">
-				{#each data.teams as ownedTeam (ownedTeam.id)}<li
-						class="flex items-center justify-between gap-3 py-3"
-					>
-						<a
-							class="font-semibold text-teal-800 hover:underline"
-							href={resolve('/admin/teams/[teamId]', { teamId: ownedTeam.id })}>{ownedTeam.name}</a
-						><span class="capitalize text-slate-500">{ownedTeam.status}</span>
-					</li>{:else}<li class="py-4 text-slate-500">
-						No Teams belong to this Organization.
-					</li>{/each}
-			</ul>
+			<h2 id="organization-teams-heading" class="text-xl font-semibold">Team hierarchy</h2>
+			<p class="mt-1 text-sm text-slate-600">
+				{data.hierarchy.total}
+				{data.hierarchy.total === 1 ? 'Team' : 'Teams'} in this Organization
+			</p>
+			{#if data.hierarchy.hasIntegrityIssue}<p
+					class="mt-3 rounded-md bg-amber-50 p-3 text-sm text-amber-900"
+					role="alert"
+				>
+					Some Team relationships could not be placed normally. Review the hierarchy before making
+					further changes.
+				</p>{/if}
+			{#if data.hierarchy.roots.length}<div
+					class="mt-4 text-sm"
+					role="tree"
+					aria-label="Team hierarchy"
+				>
+					{@render hierarchyNodes(data.hierarchy.roots)}
+				</div>{:else}<p class="mt-4 text-sm text-slate-500">
+					No Teams belong to this Organization.
+				</p>{/if}
 		</section>
 	</div>
 

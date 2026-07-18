@@ -8,12 +8,14 @@ class OrganizationDeactivationBlockedError extends Error {
 const getOrganizationAdminDetail = vi.fn();
 const updateOrganization = vi.fn();
 const listOrganizationAuditEvents = vi.fn();
+const listOrganizationTeamHierarchy = vi.fn();
 vi.mock('$lib/server/admin/organizations', () => ({
 	getOrganizationAdminDetail,
 	updateOrganization,
 	OrganizationDeactivationBlockedError
 }));
 vi.mock('$lib/server/admin/audit', () => ({ listOrganizationAuditEvents }));
+vi.mock('$lib/server/admin/team-hierarchy', () => ({ listOrganizationTeamHierarchy }));
 
 const { actions, load } = await import('./+page.server');
 const adminLocals = { user: { id: 'admin-id', role: 'admin' }, session: { id: 'session-id' } };
@@ -52,5 +54,22 @@ describe('/admin/organizations/[organizationId] server', () => {
 			request
 		} as never);
 		expect(result).toMatchObject({ status: 409, data: { blockingTeams: [{ id: 'team-id' }] } });
+	});
+
+	it('loads a bounded hierarchy for an authorized Organization detail', async () => {
+		getOrganizationAdminDetail.mockResolvedValue({
+			organization: { id: 'organization-id', name: 'Acme', status: 'active' },
+			teams: [],
+			activeTeams: []
+		});
+		listOrganizationAuditEvents.mockResolvedValue([]);
+		listOrganizationTeamHierarchy.mockResolvedValue({
+			roots: [{ id: 'root-id', name: 'Root', children: [] }],
+			total: 1,
+			hasIntegrityIssue: false
+		});
+		expect(
+			await load({ locals: adminLocals, params: { organizationId: 'organization-id' } } as never)
+		).toMatchObject({ hierarchy: { roots: [{ id: 'root-id' }], total: 1 } });
 	});
 });

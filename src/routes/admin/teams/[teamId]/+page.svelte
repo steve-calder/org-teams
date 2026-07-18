@@ -5,6 +5,11 @@
 	let confirmation = $state('');
 	const initialType = () => data.team.type;
 	let type = $state(initialType());
+	const getBlockingTeams = (): { id: string; name: string }[] =>
+		form && 'blockingTeams' in form && Array.isArray(form.blockingTeams)
+			? (form.blockingTeams as { id: string; name: string }[])
+			: [];
+	const blockingTeams = $derived(getBlockingTeams());
 </script>
 
 <svelte:head><title>{data.team.name} Admin | Org Teams</title></svelte:head>
@@ -25,11 +30,25 @@
 			· <span class="capitalize">{data.team.status}</span>
 		</p>
 	</header>
-	{#if form?.message}<p class="rounded-md bg-red-50 p-3 text-sm text-red-800" role="alert">
-			{form.message}
-		</p>{/if}
+	{#if form?.message}<div class="rounded-md bg-red-50 p-3 text-sm text-red-800" role="alert">
+			<p>{form.message}</p>
+			{#if blockingTeams.length}<ul class="mt-2 list-disc space-y-1 pl-5">
+					{#each blockingTeams as blocking (blocking.id)}<li>
+							<a
+								class="font-semibold underline"
+								href={resolve('/admin/teams/[teamId]', { teamId: blocking.id })}>{blocking.name}</a
+							>
+						</li>{/each}
+				</ul>{/if}
+		</div>{/if}
 	{#if form?.success}<p class="rounded-md bg-emerald-50 p-3 text-sm text-emerald-800" role="status">
-			{form.operation === 'transfer' ? 'Team transferred.' : 'Team updated.'}
+			{form.operation === 'transfer'
+				? 'Team transferred.'
+				: form.operation === 'parent'
+					? 'Parent Team updated.'
+					: form.operation === 'manager'
+						? 'Team manager updated.'
+						: 'Team updated.'}
 		</p>{/if}
 
 	<div class="grid gap-6 lg:grid-cols-2">
@@ -120,6 +139,105 @@
 					disabled={confirmation !== 'TRANSFER'}
 					class="justify-self-start rounded-md bg-amber-700 px-4 py-2.5 font-semibold text-white hover:bg-amber-800 disabled:cursor-not-allowed disabled:opacity-50"
 					>Transfer Team</button
+				>
+			</form>
+		</section>
+	</div>
+
+	<div class="grid gap-6 lg:grid-cols-2">
+		<section
+			class="rounded-xl border border-slate-200 bg-white p-6 shadow-sm"
+			aria-labelledby="team-hierarchy-heading"
+		>
+			<h2 id="team-hierarchy-heading" class="text-xl font-semibold">Team hierarchy</h2>
+			<div class="mt-4 space-y-3 text-sm">
+				<p>
+					<span class="font-medium">Parent:</span>
+					{#if data.hierarchy?.parent}<a
+							class="font-semibold text-teal-800 hover:underline"
+							href={resolve('/admin/teams/[teamId]', { teamId: data.hierarchy.parent.id })}
+							>{data.hierarchy.parent.name}</a
+						>{:else}<span class="text-slate-500">Top-level Team</span>{/if}
+				</p>
+				<div>
+					<p class="font-medium">Child Teams</p>
+					{#if data.hierarchy?.children.length}<ul class="mt-1 list-disc space-y-1 pl-5">
+							{#each data.hierarchy.children as child (child.id)}<li>
+									<a
+										class="font-semibold text-teal-800 hover:underline"
+										href={resolve('/admin/teams/[teamId]', { teamId: child.id })}>{child.name}</a
+									>
+									<span class="capitalize text-slate-500"> · {child.status}</span>
+								</li>{/each}
+						</ul>{:else}<p class="mt-1 text-slate-500">No child Teams.</p>{/if}
+				</div>
+			</div>
+			<form method="POST" action="?/parent" class="mt-5 grid gap-3">
+				<label
+					><span class="block text-sm font-medium">Parent Team</span><select
+						name="parentTeamId"
+						class="mt-1 w-full rounded-md border-slate-300"
+						><option value="" selected={!data.team.parentTeamId}>No parent — top-level Team</option
+						>{#each data.eligibleParents as candidate (candidate.id)}<option
+								value={candidate.id}
+								selected={candidate.id === data.team.parentTeamId}
+								>{candidate.name} · {candidate.status}</option
+							>{/each}</select
+					></label
+				>
+				<button
+					class="justify-self-start rounded-md bg-teal-700 px-4 py-2.5 font-semibold text-white hover:bg-teal-800"
+					>Update parent</button
+				>
+			</form>
+		</section>
+
+		<section
+			class="rounded-xl border border-slate-200 bg-white p-6 shadow-sm"
+			aria-labelledby="team-manager-heading"
+		>
+			<h2 id="team-manager-heading" class="text-xl font-semibold">Team manager</h2>
+			<div class="mt-4 space-y-2 text-sm">
+				<p>
+					<span class="font-medium">Manager:</span>
+					{#if data.hierarchy?.manager}<a
+							class="font-semibold text-teal-800 hover:underline"
+							href={resolve('/admin/people/[personId]', {
+								personId: data.hierarchy.manager.id
+							})}>{data.hierarchy.manager.displayName}</a
+						>{:else}<span class="text-slate-500">No manager assigned</span>{/if}
+				</p>
+				{#if data.hierarchy?.manager}<p>
+						<span class="font-medium">Supervisor through parent Team:</span>
+						{#if data.hierarchy.supervisor}<a
+								class="font-semibold text-teal-800 hover:underline"
+								href={resolve('/admin/people/[personId]', {
+									personId: data.hierarchy.supervisor.id
+								})}>{data.hierarchy.supervisor.displayName}</a
+							>{:else if !data.hierarchy.parent}<span class="text-slate-500"
+								>None — this is a top-level Team</span
+							>{:else}<span class="text-slate-500">None — the parent Team has no manager</span>{/if}
+					</p>{/if}
+			</div>
+			<p class="mt-4 text-sm text-slate-600">
+				Manager assignment does not create Team membership, Organization participation, or access to
+				private employment information.
+			</p>
+			<form method="POST" action="?/manager" class="mt-5 grid gap-3">
+				<label
+					><span class="block text-sm font-medium">Manager</span><select
+						name="managerPersonId"
+						class="mt-1 w-full rounded-md border-slate-300"
+						><option value="" selected={!data.team.managerPersonId}>No manager</option
+						>{#each data.managerOptions as manager (manager.id)}<option
+								value={manager.id}
+								selected={manager.id === data.team.managerPersonId}>{manager.displayName}</option
+							>{/each}</select
+					></label
+				>
+				<button
+					class="justify-self-start rounded-md bg-teal-700 px-4 py-2.5 font-semibold text-white hover:bg-teal-800"
+					>Update manager</button
 				>
 			</form>
 		</section>

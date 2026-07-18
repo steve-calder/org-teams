@@ -136,6 +136,12 @@ The hierarchy must not contain cycles. A Team cannot be its own parent, directly
 
 ## Primary Product Experiences
 
+### Public welcome and personal home
+
+Before login, the home page explains the product in terms of the organizational questions it helps people answer: how Teams fit together, how a Person participates across Teams, and which managers provide context for that work. It presents an honest invitation to log in without describing technical distinctions such as Person and login identity as product benefits or promising visualization controls that are not yet available.
+
+After login, the home page becomes that Person's read-only organizational dashboard. It groups their current ordinary memberships and managed Teams by Organization, shows each Team-specific role and contextual manager where applicable, and does not select a primary Team or Organization. This personal view is the starting point for later directory, hierarchy, and reporting visualizations; administration remains a separate experience.
+
 ### Organizational directory
 
 Employees can discover people and teams, understand roles and memberships, and navigate the organization from either a person or team perspective.
@@ -171,6 +177,7 @@ The first meaningful product should establish the organizational system of recor
 - Required free-text roles for ordinary Team memberships, with managers represented implicitly
 - At most one manager per Team and reporting relationships derived from Team context
 - One parent-child team hierarchy per organization
+- A value-focused public welcome page and a personal dashboard of current Organization and Team participation after login
 - Person-centered and team-centered organizational views
 - Effective periods and meaningful history for organizational relationships
 - Clear administrative, manager, and employee access boundaries

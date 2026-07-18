@@ -74,14 +74,24 @@ The shared header SHALL use server-resolved administrator authorization to displ
 
 ### Requirement: Default-route welcome content
 
-The default route SHALL replace framework starter content with a concise Org Teams welcome page containing a clear product heading, a brief introductory statement, and a small set of readable feature highlights. The feature highlights SHALL be informational and SHALL NOT imply that unavailable product functions can already be used.
+The default route SHALL render a distinct experience from server-resolved authentication context. Anonymous visitors SHALL receive a concise, value-focused Org Teams welcome page explaining how the product helps people understand Organizations, Teams, Team-specific roles, and contextual reporting relationships. Authenticated visitors SHALL receive their personal Organization and Team dashboard instead of the anonymous welcome content. Customer-facing welcome copy SHALL NOT present technical implementation choices or unavailable functions as product benefits.
 
-#### Scenario: Visitor opens the default route
+#### Scenario: Anonymous visitor opens the default route
 
-- **WHEN** a visitor requests `/`
-- **THEN** the application displays the Org Teams welcome heading, introductory copy, and brief feature highlights within the shared shell
+- **WHEN** a visitor without a valid session requests `/`
+- **THEN** the application displays a clear product heading, introductory value statement, and brief highlights about understanding Team structure, matrix participation, and reporting context
 
-#### Scenario: Visitor reads feature highlights
+#### Scenario: Anonymous visitor reads feature highlights
 
-- **WHEN** a visitor reviews the welcome page
-- **THEN** the highlights concisely describe the application's people, team, and secure-access focus without presenting nonfunctional controls
+- **WHEN** an anonymous visitor reviews the welcome page
+- **THEN** the highlights explain what Org Teams helps people understand and why that understanding is useful without promoting Person/login separation, session implementation, or other technical mechanics
+
+#### Scenario: Authenticated visitor opens the default route
+
+- **WHEN** a visitor with a valid session and linked Person requests `/`
+- **THEN** the application displays that Person's personal Organization and Team dashboard and does not display the anonymous marketing experience
+
+#### Scenario: Default route is viewed responsively
+
+- **WHEN** either default-route experience is rendered at a typical mobile viewport width
+- **THEN** its content remains readable and operable without horizontal scrolling

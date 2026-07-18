@@ -10,6 +10,12 @@ import {
 	listEligibleParentOptions
 } from '$lib/server/admin/team-hierarchy';
 import {
+	createTeamMembership,
+	getTeamMembershipAdminContext,
+	removeTeamMembership,
+	updateTeamMembershipRole
+} from '$lib/server/admin/team-memberships';
+import {
 	getTeamAdminDetail,
 	TEAM_TYPE_OPTIONS,
 	TeamDeactivationBlockedError,
@@ -21,15 +27,23 @@ import type { Actions, PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async ({ locals, params }) => {
 	requireAdmin(locals);
-	const [detail, activeOrganizations, auditEvents, hierarchy, eligibleParents, managerOptions] =
-		await Promise.all([
-			getTeamAdminDetail(params.teamId),
-			listOrganizationOptions('active'),
-			listTeamAuditEvents(params.teamId),
-			getTeamHierarchyContext(params.teamId),
-			listEligibleParentOptions(params.teamId),
-			listActiveManagerOptions()
-		]);
+	const [
+		detail,
+		activeOrganizations,
+		auditEvents,
+		hierarchy,
+		eligibleParents,
+		managerOptions,
+		membershipContext
+	] = await Promise.all([
+		getTeamAdminDetail(params.teamId),
+		listOrganizationOptions('active'),
+		listTeamAuditEvents(params.teamId),
+		getTeamHierarchyContext(params.teamId),
+		listEligibleParentOptions(params.teamId),
+		listActiveManagerOptions(),
+		getTeamMembershipAdminContext(params.teamId)
+	]);
 	if (!detail) error(404, 'Team not found.');
 	return {
 		...detail,
@@ -38,7 +52,8 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 		auditEvents,
 		hierarchy,
 		eligibleParents,
-		managerOptions
+		managerOptions,
+		membershipContext
 	};
 };
 
@@ -151,6 +166,57 @@ export const actions: Actions = {
 			return fail(400, {
 				message: caught instanceof Error ? caught.message : 'Unable to change Team manager.',
 				operation: 'manager' as const
+			});
+		}
+	},
+	membershipCreate: async ({ locals, params, request }) => {
+		const administrator = requireAdmin(locals);
+		const formData = await request.formData();
+		try {
+			await createTeamMembership(
+				formData.get('personId')?.toString() ?? '',
+				params.teamId,
+				formData.get('role')?.toString() ?? '',
+				administrator.id
+			);
+			return { success: true, operation: 'membershipCreate' as const };
+		} catch (caught) {
+			return fail(400, {
+				message: caught instanceof Error ? caught.message : 'Unable to assign Team member.',
+				operation: 'membershipCreate' as const
+			});
+		}
+	},
+	membershipRole: async ({ locals, params, request }) => {
+		const administrator = requireAdmin(locals);
+		const formData = await request.formData();
+		try {
+			await updateTeamMembershipRole(
+				formData.get('membershipId')?.toString() ?? '',
+				formData.get('role')?.toString() ?? '',
+				administrator.id,
+				{ teamId: params.teamId }
+			);
+			return { success: true, operation: 'membershipRole' as const };
+		} catch (caught) {
+			return fail(400, {
+				message: caught instanceof Error ? caught.message : 'Unable to update Team role.',
+				operation: 'membershipRole' as const
+			});
+		}
+	},
+	membershipRemove: async ({ locals, params, request }) => {
+		const administrator = requireAdmin(locals);
+		const formData = await request.formData();
+		try {
+			await removeTeamMembership(formData.get('membershipId')?.toString() ?? '', administrator.id, {
+				teamId: params.teamId
+			});
+			return { success: true, operation: 'membershipRemove' as const };
+		} catch (caught) {
+			return fail(400, {
+				message: caught instanceof Error ? caught.message : 'Unable to remove Team member.',
+				operation: 'membershipRemove' as const
 			});
 		}
 	}

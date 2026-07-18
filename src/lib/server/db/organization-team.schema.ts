@@ -5,6 +5,7 @@ import {
 	pgTable,
 	text,
 	timestamp,
+	uniqueIndex,
 	uuid,
 	type AnyPgColumn
 } from 'drizzle-orm/pg-core';
@@ -97,6 +98,31 @@ export const team = pgTable(
 	]
 );
 
+export const teamMembership = pgTable(
+	'team_membership',
+	{
+		id: uuid('id').defaultRandom().primaryKey(),
+		personId: uuid('person_id')
+			.notNull()
+			.references(() => person.id, { onDelete: 'restrict', onUpdate: 'restrict' }),
+		teamId: uuid('team_id')
+			.notNull()
+			.references(() => team.id, { onDelete: 'restrict', onUpdate: 'restrict' }),
+		role: text('role').notNull(),
+		createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+		updatedAt: timestamp('updated_at', { withTimezone: true })
+			.defaultNow()
+			.$onUpdate(() => new Date())
+			.notNull()
+	},
+	(table) => [
+		uniqueIndex('team_membership_person_team_uidx').on(table.personId, table.teamId),
+		index('team_membership_person_idx').on(table.personId),
+		index('team_membership_team_idx').on(table.teamId),
+		check('team_membership_role_length_check', sql`char_length(${table.role}) between 1 and 160`)
+	]
+);
+
 export const organizationRelations = relations(organization, ({ many }) => ({
 	teams: many(team)
 }));
@@ -114,7 +140,25 @@ export const teamRelations = relations(team, ({ one, many }) => ({
 	children: many(team, { relationName: 'teamHierarchy' }),
 	manager: one(person, {
 		fields: [team.managerPersonId],
+		references: [person.id],
+		relationName: 'teamManager'
+	}),
+	memberships: many(teamMembership)
+}));
+
+export const personRelations = relations(person, ({ many }) => ({
+	memberships: many(teamMembership),
+	managedTeams: many(team, { relationName: 'teamManager' })
+}));
+
+export const teamMembershipRelations = relations(teamMembership, ({ one }) => ({
+	person: one(person, {
+		fields: [teamMembership.personId],
 		references: [person.id]
+	}),
+	team: one(team, {
+		fields: [teamMembership.teamId],
+		references: [team.id]
 	})
 }));
 
@@ -122,3 +166,5 @@ export type Organization = typeof organization.$inferSelect;
 export type NewOrganization = typeof organization.$inferInsert;
 export type Team = typeof team.$inferSelect;
 export type NewTeam = typeof team.$inferInsert;
+export type TeamMembership = typeof teamMembership.$inferSelect;
+export type NewTeamMembership = typeof teamMembership.$inferInsert;

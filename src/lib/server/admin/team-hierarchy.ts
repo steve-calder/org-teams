@@ -2,6 +2,7 @@ import { asc, eq, sql } from 'drizzle-orm';
 import { db } from '$lib/server/db';
 import { organization, person, team, type Team } from '$lib/server/db/schema';
 import { writeAdminAudit } from './audit';
+import { reconcileManagerMembership } from './team-memberships';
 
 type AdminTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
@@ -235,6 +236,7 @@ async function loadLockedTeamRows(tx: AdminTransaction, teamId: string) {
 	const [initial] = await tx.select().from(team).where(eq(team.id, teamId)).limit(1);
 	if (!initial) throw new Error('Team not found.');
 	await lockOrganizationStructure(tx, initial.organizationId);
+	await tx.execute(sql`select id from ${team} where id = ${teamId} for update`);
 	const [current] = await tx.select().from(team).where(eq(team.id, teamId)).limit(1);
 	if (!current || current.organizationId !== initial.organizationId) {
 		throw new Error('Team ownership changed; retry the operation.');
@@ -312,6 +314,7 @@ export async function assignTeamManager(
 			if (rows.some((row) => relatedIds.has(row.id) && row.managerPersonId === managerPersonId)) {
 				throw new Error('The same Person cannot manage Teams in one reporting chain.');
 			}
+			await reconcileManagerMembership(tx, teamId, managerPersonId, actorAuthUserId);
 		}
 
 		const [updated] = await tx

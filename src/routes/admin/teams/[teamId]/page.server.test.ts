@@ -21,6 +21,10 @@ const listEligibleParentOptions = vi.fn();
 const listActiveManagerOptions = vi.fn();
 const assignTeamParent = vi.fn();
 const assignTeamManager = vi.fn();
+const getTeamMembershipAdminContext = vi.fn();
+const createTeamMembership = vi.fn();
+const updateTeamMembershipRole = vi.fn();
+const removeTeamMembership = vi.fn();
 vi.mock('$lib/server/admin/teams', () => ({
 	getTeamAdminDetail,
 	updateTeam,
@@ -37,6 +41,12 @@ vi.mock('$lib/server/admin/team-hierarchy', () => ({
 	listActiveManagerOptions,
 	assignTeamParent,
 	assignTeamManager
+}));
+vi.mock('$lib/server/admin/team-memberships', () => ({
+	getTeamMembershipAdminContext,
+	createTeamMembership,
+	updateTeamMembershipRole,
+	removeTeamMembership
 }));
 
 const { actions, load } = await import('./+page.server');
@@ -99,12 +109,95 @@ describe('/admin/teams/[teamId] server', () => {
 		getTeamHierarchyContext.mockResolvedValue({ parent: null, children: [], manager: null });
 		listEligibleParentOptions.mockResolvedValue([{ id: 'parent-id', name: 'Parent' }]);
 		listActiveManagerOptions.mockResolvedValue([{ id: 'person-id', displayName: 'Manager' }]);
+		getTeamMembershipAdminContext.mockResolvedValue({
+			roster: [{ kind: 'manager', personId: 'person-id' }],
+			eligiblePeople: [{ id: 'member-id', displayName: 'Member' }]
+		});
 		const result = await load({ locals: adminLocals, params: { teamId: 'team-id' } } as never);
 		expect(result).toMatchObject({
 			hierarchy: { parent: null },
 			eligibleParents: [{ id: 'parent-id' }],
-			managerOptions: [{ id: 'person-id' }]
+			managerOptions: [{ id: 'person-id' }],
+			membershipContext: {
+				roster: [{ kind: 'manager', personId: 'person-id' }],
+				eligiblePeople: [{ id: 'member-id' }]
+			}
 		});
+	});
+
+	it('passes Team-scoped membership actions through the transactional service', async () => {
+		createTeamMembership.mockResolvedValue({ id: 'membership-id' });
+		updateTeamMembershipRole.mockResolvedValue({ id: 'membership-id' });
+		removeTeamMembership.mockResolvedValue(undefined);
+
+		await actions.membershipCreate!({
+			locals: adminLocals,
+			params: { teamId: 'team-id' },
+			request: new Request('http://localhost/admin/teams/team-id?/membershipCreate', {
+				method: 'POST',
+				body: new URLSearchParams({ personId: 'person-id', role: 'Staff engineer' })
+			})
+		} as never);
+		await actions.membershipRole!({
+			locals: adminLocals,
+			params: { teamId: 'team-id' },
+			request: new Request('http://localhost/admin/teams/team-id?/membershipRole', {
+				method: 'POST',
+				body: new URLSearchParams({ membershipId: 'membership-id', role: 'Principal engineer' })
+			})
+		} as never);
+		await actions.membershipRemove!({
+			locals: adminLocals,
+			params: { teamId: 'team-id' },
+			request: new Request('http://localhost/admin/teams/team-id?/membershipRemove', {
+				method: 'POST',
+				body: new URLSearchParams({ membershipId: 'membership-id' })
+			})
+		} as never);
+
+		expect(createTeamMembership).toHaveBeenCalledWith(
+			'person-id',
+			'team-id',
+			'Staff engineer',
+			'admin-id'
+		);
+		expect(updateTeamMembershipRole).toHaveBeenCalledWith(
+			'membership-id',
+			'Principal engineer',
+			'admin-id',
+			{ teamId: 'team-id' }
+		);
+		expect(removeTeamMembership).toHaveBeenCalledWith('membership-id', 'admin-id', {
+			teamId: 'team-id'
+		});
+	});
+
+	it('rejects unauthorized and invalid Team membership mutations', async () => {
+		createTeamMembership.mockClear();
+		await expect(() =>
+			actions.membershipCreate!({
+				locals: { user: { id: 'user-id', role: 'user' }, session: { id: 'session-id' } },
+				params: { teamId: 'team-id' },
+				request: new Request('http://localhost/admin/teams/team-id?/membershipCreate', {
+					method: 'POST',
+					body: new URLSearchParams({ personId: 'person-id', role: 'Member' })
+				})
+			} as never)
+		).rejects.toMatchObject({ status: 403 });
+		expect(createTeamMembership).not.toHaveBeenCalled();
+
+		createTeamMembership.mockRejectedValue(
+			new Error('Role must contain between 1 and 160 characters.')
+		);
+		const result = await actions.membershipCreate!({
+			locals: adminLocals,
+			params: { teamId: 'team-id' },
+			request: new Request('http://localhost/admin/teams/team-id?/membershipCreate', {
+				method: 'POST',
+				body: new URLSearchParams({ personId: 'person-id', role: '' })
+			})
+		} as never);
+		expect(result).toMatchObject({ status: 400, data: { message: expect.stringMatching(/Role/) } });
 	});
 
 	it('passes untrusted parent and manager identifiers through validated services', async () => {

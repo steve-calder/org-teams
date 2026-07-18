@@ -3,13 +3,17 @@ import { randomUUID } from 'node:crypto';
 import { afterEach, describe, expect, it } from 'vitest';
 import { eq, inArray } from 'drizzle-orm';
 import { db } from '$lib/server/db';
-import { adminAuditEvent, organization, person, team } from '$lib/server/db/schema';
+import { adminAuditEvent, organization, person, team, teamMembership } from '$lib/server/db/schema';
 
 const organizationIds: string[] = [];
 const teamIds: string[] = [];
 const personIds: string[] = [];
+const membershipIds: string[] = [];
 
 afterEach(async () => {
+	if (membershipIds.length) {
+		await db.delete(teamMembership).where(inArray(teamMembership.id, membershipIds.splice(0)));
+	}
 	if (teamIds.length) {
 		await db.delete(adminAuditEvent).where(inArray(adminAuditEvent.targetTeamId, teamIds));
 		await db.delete(team).where(inArray(team.id, teamIds.splice(0)));
@@ -107,6 +111,59 @@ describe('Organization and Team schema', () => {
 		await expect(db.delete(person).where(eq(person.id, manager.id))).rejects.toThrow();
 	});
 
+	it('stores one bounded-role membership per Person and Team with inferred relations', async () => {
+		const owner = await createOrganization('Membership Schema Organization');
+		const [member] = await db.insert(person).values({ displayName: 'Schema member' }).returning();
+		personIds.push(member.id);
+		const [memberTeam] = await db
+			.insert(team)
+			.values({ organizationId: owner.id, name: 'Membership Team', type: 'functional' })
+			.returning();
+		teamIds.push(memberTeam.id);
+		const [membership] = await db
+			.insert(teamMembership)
+			.values({ personId: member.id, teamId: memberTeam.id, role: 'Staff engineer' })
+			.returning();
+		membershipIds.push(membership.id);
+
+		expect(membership).toMatchObject({
+			personId: member.id,
+			teamId: memberTeam.id,
+			role: 'Staff engineer'
+		});
+		expect(
+			await db.query.person.findFirst({
+				where: eq(person.id, member.id),
+				with: { memberships: { with: { team: true } }, managedTeams: true }
+			})
+		).toMatchObject({
+			memberships: [{ id: membership.id, team: { id: memberTeam.id } }],
+			managedTeams: []
+		});
+		expect(
+			await db.query.team.findFirst({
+				where: eq(team.id, memberTeam.id),
+				with: { memberships: { with: { person: true } } }
+			})
+		).toMatchObject({ memberships: [{ id: membership.id, person: { id: member.id } }] });
+
+		await expect(
+			db
+				.insert(teamMembership)
+				.values({ personId: member.id, teamId: memberTeam.id, role: 'Duplicate' })
+		).rejects.toThrow();
+		await expect(
+			db.insert(teamMembership).values({ personId: member.id, teamId: memberTeam.id, role: '' })
+		).rejects.toThrow();
+		await expect(
+			db
+				.insert(teamMembership)
+				.values({ personId: member.id, teamId: memberTeam.id, role: 'x'.repeat(161) })
+		).rejects.toThrow();
+		await expect(db.delete(person).where(eq(person.id, member.id))).rejects.toThrow();
+		await expect(db.delete(team).where(eq(team.id, memberTeam.id))).rejects.toThrow();
+	});
+
 	it('commits a migration containing the ownership and integrity constraints', async () => {
 		const migration = await readFile(
 			'drizzle/0002_add-organization-team-administration.sql',
@@ -129,5 +186,17 @@ describe('Organization and Team schema', () => {
 		expect(migration).toContain('CREATE INDEX "team_parent_idx"');
 		expect(migration).toContain('CREATE INDEX "team_manager_idx"');
 		expect(migration).not.toMatch(/UPDATE "team"|SET "parent_team_id"|SET "manager_person_id"/);
+	});
+
+	it('commits an additive membership migration with integrity and audit constraints', async () => {
+		const migration = await readFile('drizzle/0004_add-team-memberships.sql', 'utf8');
+		expect(migration).toContain('CREATE TABLE "team_membership"');
+		expect(migration).toContain('team_membership_person_team_uidx');
+		expect(migration).toContain('team_membership_person_idx');
+		expect(migration).toContain('team_membership_team_idx');
+		expect(migration).toContain('team_membership_role_length_check');
+		expect(migration).toContain('ON DELETE restrict ON UPDATE restrict');
+		expect(migration).toContain('target_person_id" is not null');
+		expect(migration).not.toMatch(/INSERT INTO "team_membership"|UPDATE "team_membership"/);
 	});
 });

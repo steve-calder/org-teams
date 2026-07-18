@@ -48,7 +48,13 @@
 					? 'Parent Team updated.'
 					: form.operation === 'manager'
 						? 'Team manager updated.'
-						: 'Team updated.'}
+						: form.operation === 'membershipCreate'
+							? 'Team member assigned.'
+							: form.operation === 'membershipRole'
+								? 'Team member role updated.'
+								: form.operation === 'membershipRemove'
+									? 'Team member removed.'
+									: 'Team updated.'}
 		</p>{/if}
 
 	<div class="grid gap-6 lg:grid-cols-2">
@@ -220,8 +226,8 @@
 					</p>{/if}
 			</div>
 			<p class="mt-4 text-sm text-slate-600">
-				Manager assignment does not create Team membership, Organization participation, or access to
-				private employment information.
+				The manager counts as a member of this Team. It does not create Organization employment or
+				grant access to private information. Promoting an ordinary member replaces that membership.
 			</p>
 			<form method="POST" action="?/manager" class="mt-5 grid gap-3">
 				<label
@@ -242,6 +248,109 @@
 			</form>
 		</section>
 	</div>
+
+	<section
+		class="rounded-xl border border-slate-200 bg-white p-6 shadow-sm"
+		aria-labelledby="team-roster-heading"
+	>
+		<div class="flex flex-wrap items-end justify-between gap-3">
+			<div>
+				<h2 id="team-roster-heading" class="text-xl font-semibold">Team roster</h2>
+				<p class="mt-1 text-sm text-slate-600">
+					The manager appears once automatically. Ordinary members have a Team-specific role.
+				</p>
+			</div>
+			<p class="text-sm text-slate-500">
+				{data.membershipContext?.roster.length ?? 0} member{data.membershipContext?.roster
+					.length === 1
+					? ''
+					: 's'}
+			</p>
+		</div>
+
+		{#if data.membershipContext?.eligiblePeople.length}
+			<form method="POST" action="?/membershipCreate" class="mt-5 grid gap-3 sm:grid-cols-3">
+				<label
+					><span class="block text-sm font-medium">Person</span><select
+						required
+						name="personId"
+						class="mt-1 w-full rounded-md border-slate-300"
+						><option value="">Select a Person</option
+						>{#each data.membershipContext.eligiblePeople as candidate (candidate.id)}<option
+								value={candidate.id}>{candidate.displayName}</option
+							>{/each}</select
+					></label
+				>
+				<label
+					><span class="block text-sm font-medium">Role on Team</span><input
+						required
+						maxlength="160"
+						name="role"
+						placeholder="e.g. Staff engineer"
+						class="mt-1 w-full rounded-md border-slate-300"
+					/></label
+				>
+				<button
+					class="self-end justify-self-start rounded-md bg-teal-700 px-4 py-2.5 font-semibold text-white hover:bg-teal-800"
+					>Assign member</button
+				>
+			</form>
+		{:else if data.team.status === 'inactive'}
+			<p class="mt-4 text-sm text-amber-800">Reactivate this Team before assigning members.</p>
+		{:else}
+			<p class="mt-4 text-sm text-slate-500">Every active Person is already assigned.</p>
+		{/if}
+
+		<ul class="mt-6 divide-y divide-slate-200">
+			{#each data.membershipContext?.roster ?? [] as member (`${member.kind}-${member.personId}`)}
+				<li class="grid gap-3 py-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,2fr)] lg:items-start">
+					<div>
+						<a
+							class="font-semibold text-teal-800 hover:underline"
+							href={resolve('/admin/people/[personId]', { personId: member.personId })}
+							>{member.displayName}</a
+						>
+						<p class="text-sm text-slate-500">
+							<span class="capitalize">{member.personStatus}</span> · {member.kind === 'manager'
+								? 'Manager membership'
+								: 'Ordinary membership'}
+						</p>
+					</div>
+					{#if member.kind === 'manager'}
+						<p class="text-sm font-medium">{member.role}</p>
+					{:else}
+						<div class="flex flex-wrap items-end gap-3">
+							<form method="POST" action="?/membershipRole" class="flex flex-1 items-end gap-2">
+								<input type="hidden" name="membershipId" value={member.membershipId ?? ''} />
+								<label class="flex-1"
+									><span class="block text-sm font-medium">Role on Team</span><input
+										required
+										maxlength="160"
+										name="role"
+										value={member.role}
+										class="mt-1 w-full rounded-md border-slate-300"
+									/></label
+								>
+								<button
+									class="rounded-md border border-slate-300 bg-white px-3 py-2 font-semibold hover:bg-slate-50"
+									>Save role</button
+								>
+							</form>
+							<form method="POST" action="?/membershipRemove">
+								<input type="hidden" name="membershipId" value={member.membershipId ?? ''} />
+								<button
+									class="rounded-md border border-red-300 bg-white px-3 py-2 font-semibold text-red-700 hover:bg-red-50"
+									>Remove</button
+								>
+							</form>
+						</div>
+					{/if}
+				</li>
+			{:else}
+				<li class="py-4 text-sm text-slate-500">No manager or ordinary members assigned.</li>
+			{/each}
+		</ul>
+	</section>
 
 	<section
 		class="rounded-xl border border-slate-200 bg-white p-6 shadow-sm"

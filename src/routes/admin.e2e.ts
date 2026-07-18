@@ -376,3 +376,110 @@ test('administrator builds a Team hierarchy and manages hierarchy-derived superv
 	).toBe(true);
 	expect(childManagerId).toBeTruthy();
 });
+
+test('administrator manages Team membership from Team and Person perspectives', async ({
+	page
+}) => {
+	test.setTimeout(90_000);
+	const suffix = `${Date.now()}-${test.info().workerIndex}`;
+	const organizationName = `Membership Organization ${suffix}`;
+	const teamName = `Membership Team ${suffix}`;
+	const memberName = `Membership Person ${suffix}`;
+
+	await loginAsDeveloper(page);
+	await page.getByRole('link', { name: 'Admin' }).click();
+	await page
+		.getByRole('navigation', { name: 'Administration' })
+		.getByRole('link', { name: 'Organizations' })
+		.click();
+	const organizationForm = page.getByRole('heading', { name: 'Add an Organization' }).locator('..');
+	await organizationForm.getByLabel('Organization name').fill(organizationName);
+	await organizationForm.getByRole('button', { name: 'Create Organization' }).click();
+	await expect(page.getByRole('status')).toContainText('Organization created');
+
+	await page.goto('/admin/teams');
+	const teamForm = page.getByRole('heading', { name: 'Add a Team' }).locator('..');
+	await teamForm.getByLabel('Team name').fill(teamName);
+	await teamForm.getByLabel('Owning Organization').selectOption({ label: organizationName });
+	await teamForm.getByLabel('Team type').selectOption('functional');
+	await teamForm.getByRole('button', { name: 'Create Team' }).click();
+	await expect(page.getByRole('status')).toContainText('Team created');
+
+	await page.goto('/admin/people');
+	const personForm = page
+		.getByRole('heading', { name: 'Add a person without login' })
+		.locator('..');
+	await personForm.getByLabel('Display name').fill(memberName);
+	await personForm.getByRole('button', { name: 'Create person' }).click();
+	await expect(page.getByRole('status')).toContainText('Person created');
+
+	await page.goto(`/admin/teams?search=${encodeURIComponent(teamName)}`);
+	const teamLink = page.getByRole('link', { name: teamName, exact: true });
+	const teamId = (await teamLink.getAttribute('href'))!.split('/').at(-1)!;
+	expect(teamId).toMatch(/^[0-9a-f-]{36}$/);
+	await teamLink.click();
+	await expect(page).toHaveURL(new RegExp(`/admin/teams/${teamId}$`));
+	const createMembershipForm = page.locator('form[action*="membershipCreate"]');
+	await createMembershipForm.getByLabel('Person').selectOption({ label: memberName });
+	await createMembershipForm.getByLabel('Role on Team').fill('Platform engineer');
+	await createMembershipForm.getByRole('button', { name: 'Assign member' }).click();
+	await expect(page.getByRole('status')).toContainText('Team member assigned');
+	const roster = page
+		.getByRole('heading', { name: 'Team roster' })
+		.locator('xpath=ancestor::section[1]');
+	const memberRow = roster.getByRole('listitem').filter({ hasText: memberName });
+	await expect(memberRow.getByRole('link', { name: memberName })).toHaveCount(1);
+	await expect(memberRow.getByLabel('Role on Team')).toHaveValue('Platform engineer');
+
+	const memberLink = memberRow.getByRole('link', { name: memberName, exact: true });
+	const personId = (await memberLink.getAttribute('href'))!.split('/').at(-1)!;
+	expect(personId).toMatch(/^[0-9a-f-]{36}$/);
+	await memberLink.click();
+	await expect(page).toHaveURL(new RegExp(`/admin/people/${personId}$`));
+	await page
+		.getByRole('navigation', { name: 'Person administration' })
+		.getByRole('link', { name: 'Teams', exact: true })
+		.click();
+	const ordinaryMemberships = page
+		.getByRole('heading', { name: 'Ordinary memberships' })
+		.locator('xpath=ancestor::section[1]');
+	const personMembershipRow = ordinaryMemberships
+		.getByRole('listitem')
+		.filter({ hasText: teamName });
+	await expect(personMembershipRow.getByRole('link', { name: teamName })).toBeVisible();
+	await personMembershipRow.getByLabel('Role on Team').fill('Principal engineer');
+	await personMembershipRow.getByRole('button', { name: 'Save', exact: true }).click();
+	await expect(page.getByRole('status')).toContainText('Team role updated');
+
+	await page.goto(`/admin/teams/${teamId}`);
+	await page.locator('select[name="managerPersonId"]').selectOption({ label: memberName });
+	await page.getByRole('button', { name: 'Update manager' }).click();
+	await expect(page.getByRole('status')).toContainText('Team manager updated');
+	const promotedRow = roster.getByRole('listitem').filter({ hasText: memberName });
+	await expect(promotedRow.getByRole('link', { name: memberName })).toHaveCount(1);
+	await expect(promotedRow.getByText('Team manager')).toBeVisible();
+
+	await page.goto(`/admin/people/${personId}/teams`);
+	await expect(page.getByText('No ordinary Team memberships.')).toBeVisible();
+	await expect(page.getByRole('heading', { name: 'Managed Teams' }).locator('..')).toContainText(
+		teamName
+	);
+
+	await page.goto(`/admin/teams/${teamId}`);
+	await page.locator('select[name="managerPersonId"]').selectOption('');
+	await page.getByRole('button', { name: 'Update manager' }).click();
+	await page.goto(`/admin/people/${personId}/teams`);
+	const personAssignmentForm = page
+		.getByRole('heading', { name: 'Assign to a Team' })
+		.locator('xpath=ancestor::section[1]')
+		.locator('form');
+	await personAssignmentForm
+		.getByLabel('Team', { exact: true })
+		.selectOption({ label: `${organizationName} · ${teamName}` });
+	await personAssignmentForm.getByLabel('Role on Team').fill('Advisor');
+	await personAssignmentForm.getByRole('button', { name: 'Assign Team' }).click();
+	await expect(page.getByRole('status')).toContainText('Team assigned');
+	await page.getByRole('button', { name: 'Remove' }).click();
+	await expect(page.getByRole('status')).toContainText('Team membership removed');
+	await expect(page.getByText('No ordinary Team memberships.')).toBeVisible();
+});

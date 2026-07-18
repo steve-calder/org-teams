@@ -100,9 +100,9 @@ Team types communicate purpose and may carry different expectations, but all tea
 
 ### Team memberships
 
-A person may belong to any number of teams. A membership may communicate the person's role in that team, an optional allocation of effort, and the period during which the membership applies. The initial model does not designate a primary Team membership.
+A person may belong to any number of Teams, including Teams in different Organizations. Each ordinary membership has a required free-text role that represents the person's title or function on that Team. The initial model does not designate a primary Team membership and does not yet maintain allocation, effective dates, or a controlled role catalog.
 
-Membership allocation is descriptive unless an organization explicitly chooses to enforce allocation rules. Not every valid team membership represents a division of working time.
+There is at most one ordinary membership for a given Person and Team. A Team's manager counts as a member through the manager assignment itself and is not also maintained as an ordinary member. If an ordinary member becomes the Team manager, the manager assignment replaces that ordinary membership.
 
 ### Team managers and derived reporting
 
@@ -111,7 +111,7 @@ Each Team may have one manager. Reporting relationships are calculated from Team
 The initial model applies these rules:
 
 - A Team member reports to that Team's manager in the context of the membership.
-- A Team manager does not report to themselves as a member of the Team they manage.
+- A Team manager is an implicit member of the Team they manage and does not report to themselves in that context.
 - The manager of a subordinate Team reports to the manager of its direct parent Team.
 - A top-level Team manager has no supervisor derived from the Team hierarchy.
 - If a Team has no manager, its members have no reporting relationship from that Team and its subordinate Team managers have no supervisor through that direct parent.
@@ -168,6 +168,7 @@ The first meaningful product should establish the organizational system of recor
 - Person and team profiles
 - Typed teams
 - Multiple simultaneous team memberships
+- Required free-text roles for ordinary Team memberships, with managers represented implicitly
 - At most one manager per Team and reporting relationships derived from Team context
 - One parent-child team hierarchy per organization
 - Person-centered and team-centered organizational views
@@ -246,7 +247,8 @@ The following questions should be resolved as the product is refined:
 - How should deactivating a Team affect its current parent and child relationships?
 - Which historical views are available to ordinary employees versus administrators?
 - How much authority does a Team manager receive by default?
-- Are membership allocations purely descriptive, optionally validated, or always enforced?
+- Should Team membership allocation and effective dating be introduced, and if so how should they be validated?
+- When should free-text Team roles be replaced or supplemented by a controlled role catalog?
 - How should contractors, external collaborators, and people between assignments appear?
 - Which organizational changes may be scheduled in advance?
 - What information is public within the organization by default?

@@ -30,7 +30,7 @@ export const adminAuditEvent = pgTable(
 		index('admin_audit_event_created_at_idx').on(table.createdAt),
 		check(
 			'admin_audit_event_domain_target_check',
-			sql`num_nonnulls(${table.targetPersonId}, ${table.targetOrganizationId}, ${table.targetTeamId}) <= 1`
+			sql`num_nonnulls(${table.targetPersonId}, ${table.targetOrganizationId}, ${table.targetTeamId}) <= 1 or (${table.targetPersonId} is not null and ${table.targetTeamId} is not null and ${table.targetOrganizationId} is null)`
 		)
 	]
 );

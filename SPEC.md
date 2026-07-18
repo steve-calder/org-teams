@@ -2,11 +2,11 @@
 
 ## Product Vision
 
-Build a people and organization system that accurately represents how modern organizations work. The application will give organizations a shared, trustworthy view of their people, teams, reporting relationships, and overlapping organizational structures.
+Build a people and organization system that accurately represents how modern organizations work. The application will give organizations a shared, trustworthy view of their people, teams, reporting relationships, and team structure.
 
 The product is inspired by modern people-management platforms such as Lattice, but its initial focus is narrower: organizational modeling, employee directory information, and understandable visualization of matrix organizations.
 
-The application must support people who belong to multiple teams, report through more than one management relationship, and appear in multiple named organizational hierarchies. It must not assume that an organization can be reduced to a single reporting tree.
+The application must support people who belong to multiple teams and may therefore work with more than one manager. Within each organization, teams form one understandable hierarchy. Reporting relationships are derived from team memberships, each team's manager, and the parent-child team structure rather than maintained as a separate person-to-person reporting structure.
 
 ## Product Goal
 
@@ -16,18 +16,18 @@ Enable every person in an organization to answer these questions clearly:
 - Which teams do they belong to?
 - Who manages or supports their work?
 - How is a team related to the rest of the organization?
-- How does the organization look through different structural perspectives?
+- Where does this team sit within the organization?
 - What did these relationships look like at a relevant point in time?
 
-For administrators, the product should provide a dependable way to maintain this information without forcing a matrix organization into an artificial single hierarchy.
+For administrators, the product should provide a dependable way to maintain this information through a clear team hierarchy, team memberships, and Team manager assignments without also maintaining a separate reporting structure for People.
 
 ## Product Theme
 
-**One organization, multiple valid views.**
+**Clear team structure, flexible people relationships.**
 
-An organization is not one tree. Functional departments, product groups, geographic divisions, delivery teams, projects, committees, and communities may all describe real and useful structures at the same time.
+Each organization has one team hierarchy. A team may report to another team, and top-level teams may exist without a parent. This produces an understandable tree or forest without requiring administrators to maintain multiple competing structural views.
 
-The application will preserve these structures independently while making their relationships understandable. It will distinguish organizational visibility from authority over sensitive employee information.
+People may belong to several teams and work with the manager of each Team. No Team membership or manager is designated as primary in the initial model. The application will distinguish these derived reporting relationships from authority over sensitive employee information.
 
 ## Guiding Principles
 
@@ -35,19 +35,20 @@ The application will preserve these structures independently while making their 
 
 The system should support overlapping relationships while still providing understandable default views. Flexibility must not make the organization impossible to navigate or administer.
 
-### Separate concepts that have different meanings
+### Derive reporting from team structure
 
-Team membership, team hierarchy, team leadership, and manager relationships are related but distinct. One must not silently imply another.
+Team membership, Team manager assignments, and the team hierarchy are the source of reporting relationships. The system should derive who reports to whom from those maintained relationships instead of requiring administrators to keep a second reporting graph synchronized.
 
 For example:
 
-- Belonging to a team does not necessarily determine a person's manager.
-- Leading a project team does not necessarily grant access to private employment information.
-- A team appearing below another team in one hierarchy does not require the same relationship in another hierarchy.
+- A Team member reports to that Team's manager in the context of that membership.
+- A subordinate Team's manager reports to the parent Team's manager.
+- A person who belongs to multiple Teams may have multiple contextual managers; none is treated as primary.
+- Managing a Team does not necessarily grant access to private employment information.
 
 ### Treat time as part of organizational truth
 
-Teams, memberships, and reporting relationships change. The product should preserve meaningful history and allow the organization to understand past and current structures. Future scheduling is a desirable extension of the same principle.
+Teams, memberships, and Team manager assignments change. The product should preserve meaningful history and allow the organization to understand past and current reporting relationships derived from that structure. Future scheduling is a desirable extension of the same principle.
 
 ### Make permissions explicit
 
@@ -63,18 +64,20 @@ Future people-management capabilities should build on the organizational model r
 
 ## Conceptual Organization Model
 
-The application centers on four independent dimensions:
+The application centers on distinct organizational concepts and relationships:
 
 ```text
                          Organization
                               |
-          +-------------------+-------------------+
-          |                   |                   |
-        People              Teams             Hierarchies
-          |                   |                   |
-          +-------- memberships -----------------+
-          |
-          +-------- reporting relationships
+                   parent-child hierarchy
+                              |
+                            Teams
+                         /         \
+              memberships       manager
+                       \         /
+                         People
+                            |
+                 derived reporting view
 ```
 
 ### People and employment
@@ -97,46 +100,39 @@ Team types communicate purpose and may carry different expectations, but all tea
 
 ### Team memberships
 
-A person may belong to any number of teams. A membership may communicate the person's role in that team, whether the membership is primary, an optional allocation of effort, and the period during which the membership applies.
+A person may belong to any number of teams. A membership may communicate the person's role in that team, an optional allocation of effort, and the period during which the membership applies. The initial model does not designate a primary Team membership.
 
 Membership allocation is descriptive unless an organization explicitly chooses to enforce allocation rules. Not every valid team membership represents a division of working time.
 
-### Reporting relationships
+### Team managers and derived reporting
 
-Reporting relationships connect people directly and do not depend on team placement.
+Each Team may have one manager. Reporting relationships are calculated from Team memberships, Team manager assignments, and the Team's position in the organization hierarchy; administrators do not maintain direct reporting links between People.
 
-The initial model recognizes:
+The initial model applies these rules:
 
-- A primary or solid-line manager, representing the person's principal management relationship
-- Dotted-line managers, representing additional matrix-management relationships
+- A Team member reports to that Team's manager in the context of the membership.
+- A Team manager does not report to themselves as a member of the Team they manage.
+- The manager of a subordinate Team reports to the manager of its direct parent Team.
+- A top-level Team manager has no supervisor derived from the Team hierarchy.
+- If a Team has no manager, its members have no reporting relationship from that Team and its subordinate Team managers have no supervisor through that direct parent.
+- A person who belongs to or manages multiple Teams may have multiple contextual reporting relationships, with none designated as primary.
 
-An active employee should normally have no more than one primary manager, while they may have multiple dotted-line managers. Valid exceptions, such as the head of the organization or an unassigned employee, must remain representable.
+Derived reporting relationships communicate organizational supervision but do not automatically confer access to private employment information or management actions. Those permissions remain explicit.
 
-Dotted-line management does not automatically confer the same authority or data access as primary management.
+### Team hierarchy
 
-### Named hierarchies
-
-The organization may define multiple named hierarchies. Each hierarchy provides one coherent structural perspective, such as:
-
-- Functional structure
-- Product structure
-- Geographic structure
-- Legal-entity structure
-
-A team may participate in multiple hierarchies and may have a different parent in each one.
+Each organization has one hierarchy of teams. A team may have one direct parent team within the same organization. A team without a parent is a top-level team, and an organization may have more than one top-level team.
 
 ```text
-Functional hierarchy                 Product hierarchy
-
-Company                              Product
-`-- Engineering                      `-- Commerce
-    `-- Platform                         `-- Checkout
-        `-- Checkout
+Organization
+|-- Engineering
+|   |-- Platform
+|   `-- Applications
+|-- Operations
+`-- Advisory Committee
 ```
 
-Within a single hierarchy, a team has at most one direct parent. This keeps each named perspective understandable as a tree or forest while still allowing the organization as a whole to express matrix structures.
-
-A hierarchy must not contain cycles. Moving or removing a team in one hierarchy must not silently change its placement in another.
+The hierarchy must not contain cycles. A Team cannot be its own parent, directly or indirectly, and a parent and child must belong to the same Organization. Because the hierarchy drives management supervision, the same Person cannot manage both a Team and one of its ancestor or descendant Teams. Team hierarchy and manager assignments do not by themselves grant permission to access sensitive information.
 
 ## Primary Product Experiences
 
@@ -146,23 +142,23 @@ Employees can discover people and teams, understand roles and memberships, and n
 
 ### Person profile
 
-A profile provides a coherent summary of a person's employment, team memberships, leadership responsibilities, and relevant reporting relationships, subject to permissions.
+A profile provides a coherent summary of a person's employment, Team memberships, Teams they manage, and reporting relationships derived from those Teams, subject to permissions.
 
 ### Team profile
 
-A team profile explains the team's purpose, members, leaders, hierarchy placements, and relationships to other teams.
+A Team profile explains the Team's purpose, manager, members, parent Team, and child Teams.
 
-### Hierarchy explorer
+### Team hierarchy explorer
 
-Users can select a named hierarchy and explore that structural view without confusing it with other valid views. The application should also make it easy to move between a team, its members, and the other hierarchies in which it appears.
+Users can explore an organization's team hierarchy and move easily between a team, its parent, its child teams, and its members.
 
 ### Reporting view
 
-Users can understand primary and dotted-line reporting relationships independently from team hierarchies. Visual treatment should make the type of each relationship apparent.
+Users can understand each person's contextual managers and reports as derived from Team memberships, Team managers, and the hierarchy. The view should identify the Team context that produced each relationship.
 
 ### Organization administration
 
-Authorized administrators can maintain people, teams, memberships, reporting relationships, and named hierarchies with validation and a clear record of organizational changes.
+Authorized administrators can maintain People, Teams, parent-child Team relationships, Team managers, and memberships. Reporting views update from those sources without a separate reporting-relationship administration workflow.
 
 ## Initial Product Scope
 
@@ -172,8 +168,8 @@ The first meaningful product should establish the organizational system of recor
 - Person and team profiles
 - Typed teams
 - Multiple simultaneous team memberships
-- Primary and dotted-line reporting relationships
-- Multiple named team hierarchies
+- At most one manager per Team and reporting relationships derived from Team context
+- One parent-child team hierarchy per organization
 - Person-centered and team-centered organizational views
 - Effective periods and meaningful history for organizational relationships
 - Clear administrative, manager, and employee access boundaries
@@ -209,19 +205,22 @@ Organizational structure is broadly useful, while employment data may be highly 
 - Acting as a person's manager
 - Administering the organization
 
-Team leadership, hierarchy placement, and dotted-line reporting must not automatically grant unrestricted access to a person's private information. Organizations should be able to establish understandable policies without configuring permissions relationship by relationship.
+Team management and hierarchy placement must not automatically grant unrestricted access to a Person's private information. Organizations should be able to establish understandable policies without configuring permissions relationship by relationship.
 
 ## Organizational Integrity
 
 The system should help organizations maintain a coherent model by making problems visible. Important integrity expectations include:
 
-- No cycles within a named hierarchy
-- No person reporting directly or indirectly to themselves through primary reporting relationships
-- No more than one active primary manager for a person under normal policy
+- No cycles within an organization's team hierarchy
+- A parent and child Team always belong to the same Organization
+- A Team has no more than one direct parent
+- No Person manages both a Team and one of that Team's ancestors or descendants
+- No derived reporting relationship makes a Person their own supervisor
+- No Team has more than one active manager
 - No duplicate active membership for the same person and team
 - Clear handling of inactive people and teams
 - Historical relationships remain attributable and understandable
-- Changes in one hierarchy do not create unintended changes in another
+- Team transfer and lifecycle changes do not leave invalid parent-child relationships
 
 The application should warn about unusual but potentially valid situations rather than rejecting every nontraditional organization structure.
 
@@ -231,9 +230,9 @@ The product is successful when:
 
 - Employees can find the right person or team and understand how they fit into the organization.
 - A person can belong to several teams without their profile becoming ambiguous.
-- Matrix reporting relationships are visible without being confused with team membership.
-- Administrators can represent functional, product, geographic, or other structures simultaneously.
-- Each hierarchy remains navigable and internally coherent.
+- Every derived reporting relationship identifies the Team context that produced it.
+- Administrators can arrange an organization's teams into an understandable tree or forest.
+- Each organization's team hierarchy remains navigable and internally coherent.
 - Organizational changes do not erase the history needed to understand past responsibilities.
 - Access to sensitive information follows explicit policy rather than incidental chart placement.
 - The organizational model can support future people-management products without major conceptual replacement.
@@ -243,16 +242,16 @@ The product is successful when:
 The following questions should be resolved as the product is refined:
 
 - Which team types are built in, and which can organizations define themselves?
-- Is every organization required to designate a default hierarchy?
-- Can a team appear more than once within the same hierarchy, or only once?
+- Should transferring a Team to another Organization be blocked until its parent and child relationships are removed?
+- How should deactivating a Team affect its current parent and child relationships?
 - Which historical views are available to ordinary employees versus administrators?
-- How much authority does a dotted-line manager receive by default?
+- How much authority does a Team manager receive by default?
 - Are membership allocations purely descriptive, optionally validated, or always enforced?
 - How should contractors, external collaborators, and people between assignments appear?
 - Which organizational changes may be scheduled in advance?
 - What information is public within the organization by default?
-- When does a team leader have membership-management authority?
+- When does a Team manager have membership-management authority?
 
 ## Future Direction
 
-Once the organizational foundation is trusted, the product may expand into selected people-management workflows. Any expansion should preserve the central theme: one organization can have multiple valid structures, and every workflow should use the same explicit definitions of people, teams, hierarchies, memberships, reporting relationships, and authority.
+Once the organizational foundation is trusted, the product may expand into selected people-management workflows. Multiple structural views or directly assigned reporting relationships could be reconsidered later if real customer needs justify the additional complexity. Any expansion should continue to use explicit definitions of People, Teams, the Team hierarchy, memberships, Team managers, derived reporting relationships, and authority.

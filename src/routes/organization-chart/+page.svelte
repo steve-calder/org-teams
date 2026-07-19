@@ -21,6 +21,7 @@
 	let direction = $state<ChartDirection>('TB');
 	let showInactive = $state(true);
 	let search = $state('');
+	let pivotTeamId = $state<string | null>(null);
 	let selectedTeamId = $state<string | null>(null);
 	let organizationExpanded = $state(false);
 	let expandedTeamIds = $state<Set<string>>(new Set());
@@ -28,7 +29,7 @@
 	let projection = $derived(
 		data.chart
 			? buildOrganizationChartProjection(data.chart, showInactive, direction, {
-					focalTeamId: selectedTeamId,
+					focalTeamId: pivotTeamId,
 					organizationExpanded,
 					expandedTeamIds
 				})
@@ -45,6 +46,7 @@
 		const serverSelectionKey = `${data.selectedOrganizationId ?? ''}:${data.selectedTeamId ?? ''}`;
 		if (serverSelectionKey !== previousServerSelectionKey) {
 			previousServerSelectionKey = serverSelectionKey;
+			pivotTeamId = data.selectedTeamId;
 			selectedTeamId = data.selectedTeamId;
 			organizationExpanded = false;
 			expandedTeamIds = new Set();
@@ -53,20 +55,36 @@
 
 	$effect(() => {
 		if (!projection) {
+			pivotTeamId = null;
 			selectedTeamId = null;
 			return;
 		}
-		const normalizedTeamId = normalizeSelectedTeamId(projection.visibleRoots, selectedTeamId);
-		if (normalizedTeamId !== selectedTeamId) {
-			selectedTeamId = normalizedTeamId;
+		const normalizedPivotTeamId = normalizeSelectedTeamId(projection.visibleRoots, pivotTeamId);
+		if (normalizedPivotTeamId !== pivotTeamId) {
+			pivotTeamId = normalizedPivotTeamId;
+			selectedTeamId = normalizedPivotTeamId;
 			organizationExpanded = false;
 			expandedTeamIds = new Set();
-			updateSelectionUrl(normalizedTeamId);
+			updateSelectionUrl(normalizedPivotTeamId);
+			return;
+		}
+		const normalizedSelectedTeamId = normalizeSelectedTeamId(
+			projection.revealedRoots,
+			selectedTeamId
+		);
+		if (normalizedSelectedTeamId !== selectedTeamId) {
+			selectedTeamId = normalizedSelectedTeamId;
 		}
 	});
 
 	function selectTeam(teamId: string) {
 		if (teamId === selectedTeamId) return;
+		selectedTeamId = teamId;
+	}
+
+	function pivotTeam(teamId: string) {
+		if (teamId === pivotTeamId) return;
+		pivotTeamId = teamId;
 		selectedTeamId = teamId;
 		organizationExpanded = false;
 		expandedTeamIds = new Set();
@@ -157,7 +175,7 @@
 									type="button"
 									class="block w-full rounded px-3 py-2 text-left text-sm hover:bg-teal-50 focus:bg-teal-50 focus:outline-none"
 									onclick={() => {
-										selectTeam(result.id);
+										pivotTeam(result.id);
 										search = '';
 									}}>{result.name}</button
 								>
@@ -237,7 +255,9 @@
 						<OrganizationChartCanvas
 							{projection}
 							{selectedTeamId}
+							{pivotTeamId}
 							onselect={selectTeam}
+							onpivot={pivotTeam}
 							ontoggleorganization={toggleOrganization}
 							ontoggleteam={toggleTeam}
 						/>
@@ -252,7 +272,9 @@
 									roots={projection.revealedRoots}
 									allRoots={projection.visibleRoots}
 									{selectedTeamId}
+									{pivotTeamId}
 									onselect={selectTeam}
+									onpivot={pivotTeam}
 									organizationName={data.chart?.organization.name}
 									{organizationExpanded}
 									{expandedTeamIds}
@@ -276,7 +298,9 @@
 							roots={projection.revealedRoots}
 							allRoots={projection.visibleRoots}
 							{selectedTeamId}
+							{pivotTeamId}
 							onselect={selectTeam}
+							onpivot={pivotTeam}
 							organizationName={data.chart?.organization.name}
 							{organizationExpanded}
 							{expandedTeamIds}

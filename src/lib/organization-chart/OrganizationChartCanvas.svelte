@@ -7,13 +7,17 @@
 	let {
 		projection,
 		selectedTeamId,
+		pivotTeamId,
 		onselect,
+		onpivot,
 		ontoggleorganization,
 		ontoggleteam
 	}: {
 		projection: ChartProjection;
 		selectedTeamId: string | null;
+		pivotTeamId: string | null;
 		onselect: (teamId: string) => void;
+		onpivot: (teamId: string) => void;
 		ontoggleorganization: () => void;
 		ontoggleteam: (teamId: string) => void;
 	} = $props();
@@ -28,7 +32,9 @@
 		<OrganizationChartFlow
 			{projection}
 			{selectedTeamId}
+			{pivotTeamId}
 			{onselect}
+			{onpivot}
 			{ontoggleorganization}
 			{ontoggleteam}
 		/>

@@ -19,19 +19,25 @@
 	let {
 		projection,
 		selectedTeamId,
+		pivotTeamId,
 		onselect,
+		onpivot,
 		ontoggleorganization,
 		ontoggleteam
 	}: {
 		projection: ChartProjection;
 		selectedTeamId: string | null;
+		pivotTeamId: string | null;
 		onselect: (teamId: string) => void;
+		onpivot: (teamId: string) => void;
 		ontoggleorganization: () => void;
 		ontoggleteam: (teamId: string) => void;
 	} = $props();
 	setContext(ORGANIZATION_CHART_DISCLOSURE, {
 		toggleOrganization: () => ontoggleorganization(),
-		toggleTeam: (teamId: string) => ontoggleteam(teamId)
+		toggleTeam: (teamId: string) => ontoggleteam(teamId),
+		pivotTeam: (teamId: string) => onpivot(teamId),
+		isPivotTeam: (teamId: string) => pivotTeamId === teamId
 	});
 
 	const nodeTypes: NodeTypes = { organization: OrganizationNode, team: TeamNode };
@@ -44,9 +50,7 @@
 		}))
 	);
 	$effect(() => {
-		const focusKey = selectedTeamId
-			? `${projection.fitViewKey}:${selectedTeamId}`
-			: projection.fitViewKey;
+		const focusKey = projection.fitViewKey;
 		if (focusKey === previousFocusKey) return;
 		previousFocusKey = focusKey;
 		void tick().then(() =>
@@ -68,8 +72,6 @@
 		{nodes}
 		edges={projection.edges}
 		{nodeTypes}
-		fitView
-		fitViewOptions={{ padding: 0.2, maxZoom: 1 }}
 		nodesDraggable={false}
 		nodesConnectable={false}
 		edgesFocusable={false}
@@ -78,7 +80,7 @@
 		multiSelectionKey={null}
 		minZoom={0.15}
 		maxZoom={1.5}
-		autoPanOnNodeFocus
+		autoPanOnNodeFocus={false}
 		onnodeclick={({ node }) => {
 			const teamId = teamIdFromNodeId(node.id);
 			if (teamId) onselect(teamId);

@@ -40,3 +40,9 @@
 - [x] 6.2 Replace full-forest chart projection with pure focal-path and progressive-expansion helpers that reveal only required ancestors plus explicitly expanded Organization or direct-Team levels, preserve direct authoritative edges, clear optional expansion on focal changes, and handle inactive filtering defensively, with unit tests.
 - [x] 6.3 Add keyboard-accessible Organization and Team subordinate disclosure controls, synchronize chart and semantic-tree revealed state, fit only revealed nodes, reset optional expansion on Organization or focal-Team changes, and retain read-only details without administration actions, with component tests.
 - [x] 6.4 Add browser coverage for deterministic user-Team defaulting, deep focal ancestry without shortcut edges, Organization top-level expansion, one-level subordinate expansion and recursive collapse, search-to-focal behavior, users without Teams, and responsive accessibility; rerun formatting, lint, Svelte checks, tests, and production build.
+
+## 7. Inspect Without Pivoting
+
+- [x] 7.1 Separate pivot-Team state from inspected-Team state in page/projection behavior; keep `teamId` as the pivot URL parameter, preserve revealed nodes and expansion during inspection, and normalize hidden inspection independently, with unit/page tests.
+- [x] 7.2 Add explicit keyboard-accessible `Pivot chart to this Team` controls and current-pivot indicators to Svelte Flow cards and Tree rows, with distinct inspect/pivot/disclosure callbacks and component tests.
+- [x] 7.3 Add browser coverage proving repeated Team inspection preserves an expanded forest and viewport, explicit pivot resets/rebuilds the graph, search still pivots, and keyboard actions remain independent; rerun the complete release gate.

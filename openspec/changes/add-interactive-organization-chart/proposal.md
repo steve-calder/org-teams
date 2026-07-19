@@ -9,7 +9,8 @@ The application does not give authenticated users a spatial way to understand th
 - Show the focal Team's complete authoritative ancestor chain to the Organization without automatically rendering unrelated Teams or its whole descendant subtree.
 - Allow users to expand or collapse direct subordinate Teams one level at a time, including Organization-level expansion of all top-level Teams.
 - Allow authenticated users to select any Organization, switch between top-to-bottom and left-to-right layouts, search or focus Teams, fit and navigate the viewport, and optionally exclude inactive Teams.
-- Present Team name, type, lifecycle, manager, and membership summary in chart context, with selection opening an informational detail panel that exposes no administrative action.
+- Present Team name, type, lifecycle, manager, and membership summary in chart context, with ordinary Team selection opening an informational detail panel without changing the currently revealed hierarchy.
+- Preserve expanded forest exploration when inspecting different visible Teams, and expose focal-Team pivoting as a separate explicit control on each Team card rather than the default whole-card action.
 - Support multiple top-level Teams through an expandable visual Organization root and preserve stable Team ordering between loads and expansion changes.
 - Keep the chart read-only: moving or selecting a visual node does not mutate Team hierarchy data.
 - Retain a semantic tree alternative with equivalent Team context for keyboard, screen-reader, mobile, and text-oriented use.

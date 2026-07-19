@@ -1,7 +1,10 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import type { OrganizationChartSummary } from '$lib/organization-chart/model';
 import Page from './+page.svelte';
+
+const { replaceState } = vi.hoisted(() => ({ replaceState: vi.fn() }));
+vi.mock('$app/navigation', () => ({ replaceState }));
 
 const chart: OrganizationChartSummary = {
 	organization: { id: 'org-1', name: 'Example Organization', status: 'active' },
@@ -59,6 +62,11 @@ describe('organization chart page', () => {
 		await expect
 			.element(screen.getByText('This is a read-only view.', { exact: false }))
 			.toBeVisible();
+		const canvas = screen.getByLabelText('Read-only Organization chart');
+		await expect
+			.element(canvas.getByRole('button', { name: 'Pivot chart to this Team: Engineering' }))
+			.toBeVisible();
+		await expect.element(canvas.getByLabelText('Platform is the current pivot Team')).toBeVisible();
 
 		await screen.getByLabelText('Find a Team').fill('Plat');
 		await screen.getByRole('button', { name: 'Platform', exact: true }).click();
@@ -82,13 +90,45 @@ describe('organization chart page', () => {
 		await expect
 			.element(screen.getByRole('heading', { name: 'Team hierarchy tree' }))
 			.toBeVisible();
-		expect(screen.getByRole('button', { name: /Legacy/ }).elements()).toHaveLength(0);
+		expect(screen.getByRole('button', { name: 'Inspect Team Legacy' }).elements()).toHaveLength(0);
 		await screen.getByRole('button', { name: /Show top-level Teams/ }).click();
-		await expect.element(screen.getByRole('button', { name: /Legacy/ })).toBeVisible();
+		await expect.element(screen.getByRole('button', { name: 'Inspect Team Legacy' })).toBeVisible();
 
 		await screen.getByRole('checkbox', { name: 'Show inactive Teams' }).click();
-		expect(screen.getByRole('button', { name: /Legacy/ }).elements()).toHaveLength(0);
-		await expect.element(screen.getByRole('button', { name: /^Engineering active/ })).toBeVisible();
+		expect(screen.getByRole('button', { name: 'Inspect Team Legacy' }).elements()).toHaveLength(0);
+		await expect
+			.element(screen.getByRole('button', { name: 'Inspect Team Engineering' }))
+			.toBeVisible();
 		expect(screen.getByRole('button', { name: 'Left to right' }).elements()).toHaveLength(0);
+	});
+
+	it('inspects revealed Teams without changing the pivot or expanded forest', async () => {
+		const screen = await render(Page, { data } as never);
+		await screen.getByRole('button', { name: 'Tree' }).click();
+		await screen.getByRole('button', { name: /Show top-level Teams/ }).click();
+		replaceState.mockClear();
+
+		await screen.getByRole('button', { name: 'Inspect Team Engineering' }).click();
+		await expect.element(screen.getByRole('complementary').getByText('Engineering')).toBeVisible();
+		await screen.getByRole('button', { name: 'Inspect Team Legacy' }).click();
+		await expect.element(screen.getByRole('complementary').getByText('Legacy')).toBeVisible();
+		await expect
+			.element(screen.getByRole('button', { name: /Hide top-level Teams/ }))
+			.toBeVisible();
+		await expect
+			.element(screen.getByRole('button', { name: 'Inspect Team Platform' }))
+			.toBeVisible();
+		expect(replaceState).not.toHaveBeenCalled();
+		await expect.element(screen.getByLabelText('Platform is the current pivot Team')).toBeVisible();
+
+		await screen.getByRole('button', { name: 'Pivot chart to this Team: Legacy' }).click();
+		await expect.element(screen.getByLabelText('Legacy is the current pivot Team')).toBeVisible();
+		expect(screen.getByRole('button', { name: 'Inspect Team Platform' }).elements()).toHaveLength(
+			0
+		);
+		expect(replaceState).toHaveBeenCalledWith(
+			'/organization-chart?organizationId=org-1&teamId=legacy',
+			{}
+		);
 	});
 });

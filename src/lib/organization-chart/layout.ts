@@ -285,7 +285,7 @@ export function buildOrganizationChartProjection(
 			connectable: false,
 			selectable: true,
 			focusable: true,
-			ariaLabel: `${team.name}, ${TEAM_TYPE_LABELS[team.type]} Team, ${team.status}`
+			ariaLabel: `Inspect Team ${team.name}, ${TEAM_TYPE_LABELS[team.type]} Team, ${team.status}`
 		}))
 	];
 

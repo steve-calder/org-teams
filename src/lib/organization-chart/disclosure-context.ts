@@ -3,4 +3,6 @@ export const ORGANIZATION_CHART_DISCLOSURE = Symbol('organization-chart-disclosu
 export interface OrganizationChartDisclosureContext {
 	toggleOrganization: () => void;
 	toggleTeam: (teamId: string) => void;
+	pivotTeam: (teamId: string) => void;
+	isPivotTeam: (teamId: string) => boolean;
 }

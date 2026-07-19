@@ -6,7 +6,9 @@
 		roots,
 		allRoots = roots,
 		selectedTeamId,
+		pivotTeamId,
 		onselect,
+		onpivot,
 		organizationName = null,
 		organizationExpanded = false,
 		expandedTeamIds = new Set<string>(),
@@ -16,7 +18,9 @@
 		roots: OrganizationChartTeam[];
 		allRoots?: OrganizationChartTeam[];
 		selectedTeamId: string | null;
+		pivotTeamId: string | null;
 		onselect: (teamId: string) => void;
+		onpivot: (teamId: string) => void;
 		organizationName?: string | null;
 		organizationExpanded?: boolean;
 		expandedTeamIds?: ReadonlySet<string>;
@@ -38,6 +42,7 @@
 					<button
 						type="button"
 						aria-pressed={selectedTeamId === team.id}
+						aria-label={`Inspect Team ${team.name}`}
 						class="w-full rounded-md text-left focus:ring-2 focus:ring-teal-600 focus:ring-offset-2 focus:outline-none"
 						onclick={() => onselect(team.id)}
 					>
@@ -51,17 +56,32 @@
 								: 'No manager'} · {team.participantCount} participants
 						</span>
 					</button>
-					{#if fullTeam?.children.length}
-						<button
-							type="button"
-							class="mt-2 rounded-md border border-teal-300 px-2 py-1 text-xs font-semibold text-teal-800 hover:bg-teal-50 focus:ring-2 focus:ring-teal-600 focus:outline-none"
-							aria-expanded={expandedTeamIds.has(team.id)}
-							onclick={() => ontoggleteam(team.id)}
-						>
-							{expandedTeamIds.has(team.id) ? 'Hide' : 'Show'} subordinate Teams ({fullTeam.children
-								.length})
-						</button>
-					{/if}
+					<div class="mt-2 flex flex-wrap items-center gap-2">
+						{#if pivotTeamId === team.id}
+							<span
+								class="rounded-md bg-slate-800 px-2 py-1 text-xs font-semibold text-white"
+								aria-label={`${team.name} is the current pivot Team`}>Pivot Team</span
+							>
+						{:else}
+							<button
+								type="button"
+								class="rounded-md border border-slate-400 px-2 py-1 text-xs font-semibold text-slate-800 hover:bg-slate-100 focus:ring-2 focus:ring-slate-600 focus:outline-none"
+								aria-label={`Pivot chart to this Team: ${team.name}`}
+								onclick={() => onpivot(team.id)}>Pivot</button
+							>
+						{/if}
+						{#if fullTeam?.children.length}
+							<button
+								type="button"
+								class="mt-2 rounded-md border border-teal-300 px-2 py-1 text-xs font-semibold text-teal-800 hover:bg-teal-50 focus:ring-2 focus:ring-teal-600 focus:outline-none"
+								aria-expanded={expandedTeamIds.has(team.id)}
+								onclick={() => ontoggleteam(team.id)}
+							>
+								{expandedTeamIds.has(team.id) ? 'Hide' : 'Show'} subordinate Teams ({fullTeam
+									.children.length})
+							</button>
+						{/if}
+					</div>
 				</div>
 				{#if team.children.length}{@render treeNodes(team.children)}{/if}
 			</li>

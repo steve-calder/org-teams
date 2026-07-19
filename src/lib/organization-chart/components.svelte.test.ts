@@ -30,19 +30,32 @@ const root: OrganizationChartTeam = {
 describe('read-only organization chart components', () => {
 	it('renders equivalent tree context and selects Teams with keyboard-operable buttons', async () => {
 		const onselect = vi.fn();
+		const onpivot = vi.fn();
 		const screen = await render(OrganizationTree, {
 			roots: [root],
 			selectedTeamId: null,
-			onselect
+			pivotTeamId: 'root',
+			onselect,
+			onpivot
 		});
 
 		await expect.element(screen.getByText('Engineering')).toBeVisible();
 		await expect
 			.element(screen.getByText('Managed by Morgan Manager', { exact: false }))
 			.toBeVisible();
-		const platform = screen.getByRole('button', { name: /Platform/ });
+		const platform = screen.getByRole('button', { name: 'Inspect Team Platform' });
 		await platform.click();
 		expect(onselect).toHaveBeenCalledWith('child');
+		expect(onpivot).not.toHaveBeenCalled();
+		await screen.getByRole('button', { name: 'Pivot chart to this Team: Platform' }).click();
+		expect(onpivot).toHaveBeenCalledWith('child');
+		expect(onselect).toHaveBeenCalledOnce();
+		await expect
+			.element(screen.getByLabelText('Engineering is the current pivot Team'))
+			.toBeVisible();
+		expect(
+			screen.getByRole('button', { name: 'Pivot chart to this Team: Engineering' }).elements()
+		).toHaveLength(0);
 		expect(screen.getByRole('link').elements()).toHaveLength(0);
 	});
 
@@ -81,7 +94,9 @@ describe('read-only organization chart components', () => {
 			roots: [revealedRoot],
 			allRoots: [root],
 			selectedTeamId: 'root',
+			pivotTeamId: 'root',
 			onselect: vi.fn(),
+			onpivot: vi.fn(),
 			organizationName: 'Example Organization',
 			organizationExpanded: false,
 			expandedTeamIds: new Set<string>(),

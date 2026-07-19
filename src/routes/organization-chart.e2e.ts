@@ -3,6 +3,9 @@ import { expect, test } from '@playwright/test';
 const DEV_EMAIL = 'dev@org-teams.local';
 const DEV_PASSWORD = 'password';
 
+const inspectTeamLabel = (name: string, status: 'active' | 'inactive' = 'active') =>
+	`Inspect Team ${name}, Functional Team, ${status}`;
+
 async function login(page: import('@playwright/test').Page, email: string, password: string) {
 	await page.goto('/login');
 	await page.waitForLoadState('networkidle');
@@ -115,7 +118,7 @@ test('authenticated non-admin explores a read-only Organization chart', async ({
 	await expect(page.getByRole('heading', { name: 'Organization chart' })).toBeVisible();
 	await expect(page.getByText('This is a read-only view.', { exact: false })).toBeVisible();
 	await expect(page.getByLabel(`Organization ${organizationName}`)).toBeVisible();
-	await expect(page.getByLabel(`${firstRootName}, Functional Team, active`)).toHaveCount(0);
+	await expect(page.getByLabel(inspectTeamLabel(firstRootName))).toHaveCount(0);
 	await expect(page.getByRole('button', { name: /Show 3 top-level Teams for/ })).toBeVisible();
 
 	await page.getByRole('button', { name: 'Logout' }).click();
@@ -137,12 +140,13 @@ test('authenticated non-admin explores a read-only Organization chart', async ({
 	expect(organizationId).toBeTruthy();
 	await expect(page.getByLabel('Organization', { exact: true })).toHaveValue(organizationId!);
 
-	await expect(page.getByLabel(`${firstRootName}, Functional Team, active`)).toBeVisible();
-	await expect(page.getByLabel(`${seniorName}, Functional Team, active`)).toBeVisible();
-	await expect(page.getByLabel(`${focalName}, Functional Team, active`)).toBeVisible();
-	await expect(page.getByLabel(`${secondRootName}, Functional Team, active`)).toHaveCount(0);
-	await expect(page.getByLabel(`${siblingName}, Functional Team, active`)).toHaveCount(0);
-	await expect(page.getByLabel(`${subordinateName}, Functional Team, active`)).toHaveCount(0);
+	const chartCanvas = page.getByLabel('Read-only Organization chart');
+	await expect(chartCanvas.getByLabel(inspectTeamLabel(firstRootName))).toBeVisible();
+	await expect(page.getByLabel(inspectTeamLabel(seniorName))).toBeVisible();
+	await expect(page.getByLabel(inspectTeamLabel(focalName))).toBeVisible();
+	await expect(page.getByLabel(inspectTeamLabel(secondRootName))).toHaveCount(0);
+	await expect(page.getByLabel(inspectTeamLabel(siblingName))).toHaveCount(0);
+	await expect(page.getByLabel(inspectTeamLabel(subordinateName))).toHaveCount(0);
 	await expect(page.locator('.svelte-flow__edge')).toHaveCount(3);
 	await expect(page.getByRole('button', { name: /fit view/i })).toBeVisible();
 	const details = page.getByRole('complementary');
@@ -150,39 +154,76 @@ test('authenticated non-admin explores a read-only Organization chart', async ({
 	await expect(details.getByText('Parent Team').locator('..')).toContainText(seniorName);
 
 	await page.getByRole('button', { name: /Show 3 top-level Teams for/ }).click();
-	await expect(page.getByLabel(`${secondRootName}, Functional Team, active`)).toBeVisible();
-	await expect(page.getByLabel(`${inactiveName}, Functional Team, inactive`)).toBeVisible();
+	await expect(page.getByLabel(inspectTeamLabel(secondRootName))).toBeVisible();
+	await expect(page.getByLabel(inspectTeamLabel(inactiveName, 'inactive'))).toBeVisible();
 	await page.getByRole('button', { name: /Hide 3 top-level Teams for/ }).click();
-	await expect(page.getByLabel(`${secondRootName}, Functional Team, active`)).toHaveCount(0);
-	await expect(page.getByLabel(`${firstRootName}, Functional Team, active`)).toBeVisible();
+	await expect(page.getByLabel(inspectTeamLabel(secondRootName))).toHaveCount(0);
+	await expect(page.getByLabel(inspectTeamLabel(firstRootName))).toBeVisible();
 
 	await page.getByRole('button', { name: `Show subordinate Teams for ${seniorName}` }).click();
-	await expect(page.getByLabel(`${siblingName}, Functional Team, active`)).toBeVisible();
+	await expect(page.getByLabel(inspectTeamLabel(siblingName))).toBeVisible();
 	await page.getByRole('button', { name: `Show subordinate Teams for ${focalName}` }).click();
-	await expect(page.getByLabel(`${subordinateName}, Functional Team, active`)).toBeVisible();
-	await expect(page.getByLabel(`${deepSubordinateName}, Functional Team, active`)).toHaveCount(0);
-	await page
-		.getByRole('button', { name: `Show subordinate Teams for ${subordinateName}` })
-		.click();
-	await expect(page.getByLabel(`${deepSubordinateName}, Functional Team, active`)).toBeVisible();
+	await expect(page.getByLabel(inspectTeamLabel(subordinateName))).toBeVisible();
+	await expect(page.getByLabel(inspectTeamLabel(deepSubordinateName))).toHaveCount(0);
+	await page.getByRole('button', { name: `Show subordinate Teams for ${subordinateName}` }).click();
+	await expect(page.getByLabel(inspectTeamLabel(deepSubordinateName))).toBeVisible();
 	await page.getByRole('button', { name: `Hide subordinate Teams for ${focalName}` }).click();
-	await expect(page.getByLabel(`${subordinateName}, Functional Team, active`)).toHaveCount(0);
-	await expect(page.getByLabel(`${deepSubordinateName}, Functional Team, active`)).toHaveCount(0);
-	await expect(page.getByLabel(`${siblingName}, Functional Team, active`)).toBeVisible();
+	await expect(page.getByLabel(inspectTeamLabel(subordinateName))).toHaveCount(0);
+	await expect(page.getByLabel(inspectTeamLabel(deepSubordinateName))).toHaveCount(0);
+	await expect(page.getByLabel(inspectTeamLabel(siblingName))).toBeVisible();
+
+	const expandedForestUrl = page.url();
+	const viewport = page.locator('.svelte-flow__viewport');
+	async function settledViewportStyle() {
+		let previous: string | null = null;
+		for (let attempt = 0; attempt < 12; attempt += 1) {
+			await page.waitForTimeout(150);
+			const current = await viewport.getAttribute('style');
+			if (current === previous) return current;
+			previous = current;
+		}
+		throw new Error('Organization chart viewport did not settle');
+	}
+	await settledViewportStyle();
+	await page.getByRole('button', { name: /zoom in/i }).click();
+	const expandedForestViewport = await settledViewportStyle();
+	await page.getByLabel(inspectTeamLabel(firstRootName)).click();
+	await expect(details.getByText(firstRootName, { exact: true })).toBeVisible();
+	await page.getByLabel(inspectTeamLabel(siblingName)).click();
+	await expect(details.getByText(siblingName, { exact: true })).toBeVisible();
+	await expect(page.getByLabel(inspectTeamLabel(focalName))).toBeVisible();
+	await expect(
+		page.getByRole('button', { name: `Hide subordinate Teams for ${seniorName}` })
+	).toBeVisible();
+	await expect(chartCanvas.getByLabel(`${focalName} is the current pivot Team`)).toBeVisible();
+	expect(page.url()).toBe(expandedForestUrl);
+	expect(await settledViewportStyle()).toBe(expandedForestViewport);
+
+	await chartCanvas
+		.getByRole('button', { name: `Pivot chart to this Team: ${siblingName}` })
+		.click();
+	await expect(chartCanvas.getByLabel(`${siblingName} is the current pivot Team`)).toBeVisible();
+	await expect(details.getByText(siblingName, { exact: true })).toBeVisible();
+	await expect(page.getByLabel(inspectTeamLabel(focalName))).toHaveCount(0);
+	await expect(
+		page.getByRole('button', { name: `Show subordinate Teams for ${seniorName}` })
+	).toBeVisible();
+	expect(page.url()).not.toBe(expandedForestUrl);
+	await expect(page).toHaveURL(/teamId=/);
 
 	await page.getByLabel('Find a Team').fill(secondRootName);
 	await page.getByRole('button', { name: secondRootName, exact: true }).click();
 	await expect(page).toHaveURL(/teamId=/);
-	await expect(page.getByLabel(`${secondRootName}, Functional Team, active`)).toBeVisible();
-	await expect(page.getByLabel(`${firstRootName}, Functional Team, active`)).toHaveCount(0);
+	await expect(page.getByLabel(inspectTeamLabel(secondRootName))).toBeVisible();
+	await expect(page.getByLabel(inspectTeamLabel(firstRootName))).toHaveCount(0);
 	await expect(page.locator('.svelte-flow__edge')).toHaveCount(1);
 
 	await page.getByLabel('Find a Team').fill(focalName);
 	await page.getByRole('button', { name: focalName, exact: true }).click();
-	await expect(page.getByLabel(`${firstRootName}, Functional Team, active`)).toBeVisible();
-	await expect(page.getByLabel(`${seniorName}, Functional Team, active`)).toBeVisible();
-	await expect(page.getByLabel(`${focalName}, Functional Team, active`)).toBeVisible();
-	await expect(page.getByLabel(`${siblingName}, Functional Team, active`)).toHaveCount(0);
+	await expect(page.getByLabel(inspectTeamLabel(firstRootName))).toBeVisible();
+	await expect(page.getByLabel(inspectTeamLabel(seniorName))).toBeVisible();
+	await expect(page.getByLabel(inspectTeamLabel(focalName))).toBeVisible();
+	await expect(page.getByLabel(inspectTeamLabel(siblingName))).toHaveCount(0);
 
 	await page.getByRole('button', { name: 'Left to right' }).click();
 	await expect(page.getByRole('button', { name: 'Left to right' })).toHaveAttribute(
@@ -190,16 +231,35 @@ test('authenticated non-admin explores a read-only Organization chart', async ({
 		'true'
 	);
 	await page.getByRole('button', { name: /Show 3 top-level Teams for/ }).click();
-	await expect(page.getByLabel(`${inactiveName}, Functional Team, inactive`)).toBeVisible();
+	await expect(page.getByLabel(inspectTeamLabel(inactiveName, 'inactive'))).toBeVisible();
 	await page.getByRole('checkbox', { name: 'Show inactive Teams' }).uncheck();
-	await expect(page.getByLabel(`${inactiveName}, Functional Team, inactive`)).toHaveCount(0);
+	await expect(page.getByLabel(inspectTeamLabel(inactiveName, 'inactive'))).toHaveCount(0);
 
 	await page.getByRole('button', { name: 'Tree' }).click();
 	const treeSection = page.getByRole('heading', { name: 'Team hierarchy tree' }).locator('..');
 	await expect(treeSection).toBeVisible();
 	await expect(
-		treeSection.getByRole('button', { name: new RegExp(`^${firstRootName} active`) })
+		treeSection.getByRole('button', { name: `Inspect Team ${firstRootName}` })
 	).toBeVisible();
+	const keyboardInspectionUrl = page.url();
+	const inspectFirstRoot = treeSection.getByRole('button', {
+		name: `Inspect Team ${firstRootName}`
+	});
+	await inspectFirstRoot.focus();
+	await page.keyboard.press('Enter');
+	await expect(details.getByText(firstRootName, { exact: true })).toBeVisible();
+	await expect(page.getByLabel(`${focalName} is the current pivot Team`)).toBeVisible();
+	await expect(page.getByRole('button', { name: /Hide top-level Teams/ })).toBeVisible();
+	expect(page.url()).toBe(keyboardInspectionUrl);
+
+	const pivotFirstRoot = treeSection.getByRole('button', {
+		name: `Pivot chart to this Team: ${firstRootName}`
+	});
+	await pivotFirstRoot.focus();
+	await page.keyboard.press('Enter');
+	await expect(page.getByLabel(`${firstRootName} is the current pivot Team`)).toBeVisible();
+	await expect(page.getByRole('button', { name: /Show top-level Teams/ })).toBeVisible();
+	expect(page.url()).not.toBe(keyboardInspectionUrl);
 	await expect(page.getByRole('link', { name: 'Admin' })).toHaveCount(0);
 	await expect(page.getByRole('button', { name: /edit|delete|move|save/i })).toHaveCount(0);
 

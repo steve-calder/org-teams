@@ -45,19 +45,37 @@
 			{data.team.participantCount}
 		</p>
 	</div>
-	{#if data.hasChildren}
-		<button
-			type="button"
-			class="nodrag nopan mt-2 rounded-md border border-teal-300 px-2 py-1 text-xs font-semibold text-teal-800 hover:bg-teal-50 focus:ring-2 focus:ring-teal-600 focus:outline-none"
-			aria-expanded={data.expanded}
-			aria-label={`${data.expanded ? 'Hide' : 'Show'} subordinate Teams for ${data.team.name}`}
-			onclick={(event) => {
-				event.stopPropagation();
-				disclosure.toggleTeam(data.team.id);
-			}}
-		>
-			{data.expanded ? 'Hide' : 'Show'} subordinate Teams ({data.directChildCount})
-		</button>
-	{/if}
+	<div class="mt-2 flex flex-wrap items-center gap-1.5">
+		{#if disclosure.isPivotTeam(data.team.id)}
+			<span
+				class="rounded-md bg-slate-800 px-2 py-1 text-xs font-semibold text-white"
+				aria-label={`${data.team.name} is the current pivot Team`}>Pivot Team</span
+			>
+		{:else}
+			<button
+				type="button"
+				class="nodrag nopan rounded-md border border-slate-400 px-2 py-1 text-xs font-semibold text-slate-800 hover:bg-slate-100 focus:ring-2 focus:ring-slate-600 focus:outline-none"
+				aria-label={`Pivot chart to this Team: ${data.team.name}`}
+				onclick={(event) => {
+					event.stopPropagation();
+					disclosure.pivotTeam(data.team.id);
+				}}>Pivot</button
+			>
+		{/if}
+		{#if data.hasChildren}
+			<button
+				type="button"
+				class="nodrag nopan rounded-md border border-teal-300 px-2 py-1 text-xs font-semibold text-teal-800 hover:bg-teal-50 focus:ring-2 focus:ring-teal-600 focus:outline-none"
+				aria-expanded={data.expanded}
+				aria-label={`${data.expanded ? 'Hide' : 'Show'} subordinate Teams for ${data.team.name}`}
+				onclick={(event) => {
+					event.stopPropagation();
+					disclosure.toggleTeam(data.team.id);
+				}}
+			>
+				{data.expanded ? 'Hide' : 'Show'} subordinates ({data.directChildCount})
+			</button>
+		{/if}
+	</div>
 	<Handle type="source" position={sourcePosition} isConnectable={false} class="opacity-0" />
 </div>

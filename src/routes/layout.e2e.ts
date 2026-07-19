@@ -78,7 +78,10 @@ test('authenticated home shows the Person across Organizations and Team contexts
 
 	async function createOrganization(name: string) {
 		await page.goto('/admin/organizations');
-		const form = page.getByRole('heading', { name: 'Add an Organization' }).locator('..');
+		await page.getByRole('button', { name: 'Add new Organization' }).click();
+		const form = page
+			.getByRole('heading', { name: 'Add an Organization' })
+			.locator('xpath=ancestor::section[1]');
 		await form.getByLabel('Organization name').fill(name);
 		await form.getByRole('button', { name: 'Create Organization' }).click();
 		await expect(page.getByRole('status')).toContainText('Organization created');
@@ -86,7 +89,10 @@ test('authenticated home shows the Person across Organizations and Team contexts
 
 	async function createTeam(name: string, organizationName: string) {
 		await page.goto('/admin/teams');
-		const form = page.getByRole('heading', { name: 'Add a Team' }).locator('..');
+		await page.getByRole('button', { name: 'Add new Team' }).click();
+		const form = page
+			.getByRole('heading', { name: 'Add a Team' })
+			.locator('xpath=ancestor::section[1]');
 		await form.getByLabel('Team name').fill(name);
 		await form.getByLabel('Owning Organization').selectOption({ label: organizationName });
 		await form.getByLabel('Team type').selectOption('functional');

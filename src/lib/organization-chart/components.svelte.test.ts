@@ -65,9 +65,9 @@ describe('read-only organization chart components', () => {
 
 		await expect.element(screen.getByRole('heading', { name: 'Team details' })).toBeVisible();
 		await expect.element(screen.getByText('Morgan Manager')).toBeVisible();
-		await expect
-			.element(screen.getByText('This view is informational.', { exact: false }))
-			.toBeVisible();
+		expect(
+			screen.getByText('This view is informational.', { exact: false }).elements()
+		).toHaveLength(0);
 		await screen.getByRole('button', { name: 'Engineering' }).click();
 		expect(onselect).toHaveBeenCalledWith('root');
 		expect(screen.getByRole('link').elements()).toHaveLength(0);

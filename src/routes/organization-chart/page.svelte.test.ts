@@ -71,9 +71,6 @@ describe('organization chart page', () => {
 		await screen.getByLabelText('Find a Team').fill('Plat');
 		await screen.getByRole('button', { name: 'Platform', exact: true }).click();
 		await expect.element(screen.getByText('Morgan Manager', { exact: true })).toBeVisible();
-		await expect
-			.element(screen.getByText('This view is informational.', { exact: false }))
-			.toBeVisible();
 		expect(
 			screen
 				.getByRole('link')

@@ -69,9 +69,6 @@
 					</dd>
 				</div>
 			</dl>
-			<p class="rounded-md bg-slate-50 p-3 text-xs text-slate-600">
-				This view is informational. Team structure can’t be edited here.
-			</p>
 		</div>
 	{:else}
 		<p class="mt-3 text-sm text-slate-600">Select a Team to inspect its hierarchy context.</p>

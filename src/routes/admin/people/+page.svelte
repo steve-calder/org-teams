@@ -5,6 +5,10 @@
 	import type { ActionData, PageData } from './$types';
 
 	let { data, form }: { data: PageData; form: ActionData } = $props();
+	let showCreatePersonOverride = $state<boolean | null>(null);
+	let showCreatePerson = $derived(
+		showCreatePersonOverride ?? Boolean(form?.message || form?.success)
+	);
 
 	function pageQuery(page: number) {
 		const params = new SvelteURLSearchParams({ page: page.toString() });
@@ -19,15 +23,26 @@
 <svelte:head><title>People Admin | Org Teams</title></svelte:head>
 
 <section aria-labelledby="people-heading" class="space-y-8">
-	<header class="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-		<div>
-			<p class="text-sm font-semibold tracking-wide text-teal-700 uppercase">Administration</p>
-			<h1 id="people-heading" class="mt-1 text-3xl font-semibold tracking-tight text-slate-950">
+	<header>
+		<p class="text-sm font-semibold tracking-wide text-teal-700 uppercase">Administration</p>
+		<div class="mt-1 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+			<h1 id="people-heading" class="text-3xl font-semibold tracking-tight text-slate-950">
 				People
 			</h1>
-			<p class="mt-2 text-slate-600">Manage Person profiles and their optional login access.</p>
+			{#if !showCreatePerson}
+				<button
+					type="button"
+					aria-controls="create-person-controls"
+					aria-expanded="false"
+					class="rounded-md bg-teal-700 px-4 py-2.5 font-semibold text-white hover:bg-teal-800 focus:ring-2 focus:ring-teal-600 focus:ring-offset-2 focus:outline-none"
+					onclick={() => (showCreatePersonOverride = true)}>Add new person</button
+				>
+			{/if}
 		</div>
-		<p class="text-sm text-slate-500">{data.total} total</p>
+		<div class="mt-2 flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+			<p class="text-slate-600">Manage Person profiles and their optional login access.</p>
+			<p class="text-sm text-slate-500">{data.total} total</p>
+		</div>
 	</header>
 
 	{#if data.orphanedAuthUsers > 0}
@@ -38,6 +53,68 @@
 			<strong>{data.orphanedAuthUsers} authentication user(s)</strong> have no linked Person and require
 			integrity review.
 		</div>
+	{/if}
+
+	{#if showCreatePerson}
+		<section
+			id="create-person-controls"
+			aria-labelledby="create-person-heading"
+			class="rounded-xl border border-slate-200 bg-white p-6 shadow-sm"
+		>
+			<div class="flex flex-wrap items-start justify-between gap-3">
+				<div>
+					<h2 id="create-person-heading" class="text-xl font-semibold text-slate-950">
+						Add a person without login
+					</h2>
+					<p class="mt-1 text-sm text-slate-600">Login access can be attached later.</p>
+				</div>
+				<button
+					type="button"
+					class="rounded-md border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 focus:ring-2 focus:ring-teal-600 focus:outline-none"
+					onclick={() => (showCreatePersonOverride = false)}>Hide add person controls</button
+				>
+			</div>
+			{#if form?.message}<p class="mt-4 rounded-md bg-red-50 p-3 text-sm text-red-800" role="alert">
+					{form.message}
+				</p>{/if}
+			{#if form?.success}<p
+					class="mt-4 rounded-md bg-emerald-50 p-3 text-sm text-emerald-800"
+					role="status"
+				>
+					Person created.
+				</p>{/if}
+			<form method="POST" action="?/create" class="mt-5 grid gap-4 sm:grid-cols-2">
+				<label
+					><span class="block text-sm font-medium">Display name</span><input
+						required
+						name="displayName"
+						class="mt-1 w-full rounded-md border-slate-300"
+					/></label
+				>
+				<label
+					><span class="block text-sm font-medium">Legal name</span><input
+						name="legalName"
+						class="mt-1 w-full rounded-md border-slate-300"
+					/></label
+				>
+				<label
+					><span class="block text-sm font-medium">Employee identifier</span><input
+						name="employeeIdentifier"
+						class="mt-1 w-full rounded-md border-slate-300"
+					/></label
+				>
+				<label
+					><span class="block text-sm font-medium">Job title</span><input
+						name="jobTitle"
+						class="mt-1 w-full rounded-md border-slate-300"
+					/></label
+				>
+				<button
+					class="rounded-md bg-teal-700 px-4 py-2.5 font-semibold text-white hover:bg-teal-800 focus:ring-2 focus:ring-teal-600 focus:ring-offset-2 focus:outline-none sm:col-span-2 sm:justify-self-start"
+					>Create person</button
+				>
+			</form>
+		</section>
 	{/if}
 
 	<form
@@ -141,54 +218,4 @@
 				href={resolve('/admin/people') + pageQuery(data.page + 1)}>Next</a
 			>{/if}
 	</nav>
-
-	<section
-		aria-labelledby="create-person-heading"
-		class="rounded-xl border border-slate-200 bg-white p-6 shadow-sm"
-	>
-		<h2 id="create-person-heading" class="text-xl font-semibold text-slate-950">
-			Add a person without login
-		</h2>
-		<p class="mt-1 text-sm text-slate-600">Login access can be attached later.</p>
-		{#if form?.message}<p class="mt-4 rounded-md bg-red-50 p-3 text-sm text-red-800" role="alert">
-				{form.message}
-			</p>{/if}
-		{#if form?.success}<p
-				class="mt-4 rounded-md bg-emerald-50 p-3 text-sm text-emerald-800"
-				role="status"
-			>
-				Person created.
-			</p>{/if}
-		<form method="POST" action="?/create" class="mt-5 grid gap-4 sm:grid-cols-2">
-			<label
-				><span class="block text-sm font-medium">Display name</span><input
-					required
-					name="displayName"
-					class="mt-1 w-full rounded-md border-slate-300"
-				/></label
-			>
-			<label
-				><span class="block text-sm font-medium">Legal name</span><input
-					name="legalName"
-					class="mt-1 w-full rounded-md border-slate-300"
-				/></label
-			>
-			<label
-				><span class="block text-sm font-medium">Employee identifier</span><input
-					name="employeeIdentifier"
-					class="mt-1 w-full rounded-md border-slate-300"
-				/></label
-			>
-			<label
-				><span class="block text-sm font-medium">Job title</span><input
-					name="jobTitle"
-					class="mt-1 w-full rounded-md border-slate-300"
-				/></label
-			>
-			<button
-				class="rounded-md bg-teal-700 px-4 py-2.5 font-semibold text-white hover:bg-teal-800 focus:ring-2 focus:ring-teal-600 focus:ring-offset-2 focus:outline-none sm:col-span-2 sm:justify-self-start"
-				>Create person</button
-			>
-		</form>
-	</section>
 </section>

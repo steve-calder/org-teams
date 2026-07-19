@@ -27,7 +27,7 @@ The system SHALL persist administrator authorization on the Better Auth user usi
 
 ### Requirement: Person-centered administration directory
 
-The administration console SHALL present a searchable, paginated directory whose primary record is Person and whose rows include only allowlisted linked-user status when authentication exists. The directory SHALL include Person records with and without authentication users and SHALL support filters for login state, active state, and administrator state.
+The administration console SHALL present a searchable, paginated directory whose primary record is Person and whose rows include only allowlisted linked-user status when authentication exists. The directory SHALL include Person records with and without authentication users and SHALL support filters for login state, active state, and administrator state. Person creation controls SHALL be initially collapsed, SHALL be revealed above the directory through an `Add new person` control aligned opposite the People title in the directory header, and SHALL provide a control that hides them again.
 
 #### Scenario: Directory contains mixed login states
 
@@ -43,6 +43,11 @@ The administration console SHALL present a searchable, paginated directory whose
 
 - **WHEN** the system detects an authentication user with no linked Person
 - **THEN** the console surfaces an integrity warning rather than treating that user as a normal independent directory entry
+
+#### Scenario: Administrator toggles Person creation controls
+
+- **WHEN** an administrator opens the People directory and activates `Add new person`
+- **THEN** the Person creation controls appear above the filters and directory table and provide a control that hides them again
 
 ### Requirement: Person profile administration
 

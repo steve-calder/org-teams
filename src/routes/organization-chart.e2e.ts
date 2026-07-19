@@ -43,7 +43,11 @@ test('authenticated non-admin explores a read-only Organization chart', async ({
 
 	async function createTeam(name: string) {
 		await page.goto('/admin/teams');
-		const form = page.getByRole('heading', { name: 'Add a Team' }).locator('..');
+		await page.waitForLoadState('networkidle');
+		await page.getByRole('button', { name: 'Add new Team' }).click();
+		const form = page
+			.getByRole('heading', { name: 'Add a Team' })
+			.locator('xpath=ancestor::section[1]');
 		await form.getByLabel('Team name').fill(name);
 		await form.getByLabel('Owning Organization').selectOption({ label: organizationName });
 		await form.getByLabel('Team type').selectOption('functional');
@@ -66,7 +70,11 @@ test('authenticated non-admin explores a read-only Organization chart', async ({
 
 	await login(page, DEV_EMAIL, DEV_PASSWORD);
 	await page.goto('/admin/organizations');
-	const organizationForm = page.getByRole('heading', { name: 'Add an Organization' }).locator('..');
+	await page.waitForLoadState('networkidle');
+	await page.getByRole('button', { name: 'Add new Organization' }).click();
+	const organizationForm = page
+		.getByRole('heading', { name: 'Add an Organization' })
+		.locator('xpath=ancestor::section[1]');
 	await organizationForm.getByLabel('Organization name').fill(organizationName);
 	await organizationForm.getByRole('button', { name: 'Create Organization' }).click();
 	await expect(page.getByRole('status')).toContainText('Organization created');
@@ -94,9 +102,11 @@ test('authenticated non-admin explores a read-only Organization chart', async ({
 	await expect(page.getByRole('status')).toContainText('Team updated');
 
 	await page.goto('/admin/people');
+	await page.waitForLoadState('networkidle');
+	await page.getByRole('button', { name: 'Add new person' }).click();
 	const personForm = page
 		.getByRole('heading', { name: 'Add a person without login' })
-		.locator('..');
+		.locator('xpath=ancestor::section[1]');
 	await personForm.getByLabel('Display name').fill(personName);
 	await personForm.getByRole('button', { name: 'Create person' }).click();
 	await expect(page.getByRole('status')).toContainText('Person created');

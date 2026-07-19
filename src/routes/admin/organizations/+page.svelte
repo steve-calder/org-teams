@@ -4,6 +4,10 @@
 	import { SvelteURLSearchParams } from 'svelte/reactivity';
 	import type { ActionData, PageData } from './$types';
 	let { data, form }: { data: PageData; form: ActionData } = $props();
+	let showCreateOrganizationOverride = $state<boolean | null>(null);
+	let showCreateOrganization = $derived(
+		showCreateOrganizationOverride ?? Boolean(form?.message || form?.success)
+	);
 	function pageQuery(page: number) {
 		const params = new SvelteURLSearchParams({ page: page.toString() });
 		if (data.search) params.set('search', data.search);
@@ -15,16 +19,75 @@
 <svelte:head><title>Organizations Admin | Org Teams</title></svelte:head>
 
 <section aria-labelledby="organizations-heading" class="space-y-8">
-	<header class="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-		<div>
-			<p class="text-sm font-semibold tracking-wide text-teal-700 uppercase">Administration</p>
-			<h1 id="organizations-heading" class="mt-1 text-3xl font-semibold tracking-tight">
+	<header>
+		<p class="text-sm font-semibold tracking-wide text-teal-700 uppercase">Administration</p>
+		<div class="mt-1 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+			<h1 id="organizations-heading" class="text-3xl font-semibold tracking-tight">
 				Organizations
 			</h1>
-			<p class="mt-2 text-slate-600">Define the organizations that own Teams.</p>
+			{#if !showCreateOrganization}
+				<button
+					type="button"
+					aria-controls="create-organization-controls"
+					aria-expanded="false"
+					class="rounded-md bg-teal-700 px-4 py-2.5 font-semibold text-white hover:bg-teal-800 focus:ring-2 focus:ring-teal-600 focus:ring-offset-2 focus:outline-none"
+					onclick={() => (showCreateOrganizationOverride = true)}>Add new Organization</button
+				>
+			{/if}
 		</div>
-		<p class="text-sm text-slate-500">{data.total} total</p>
+		<div class="mt-2 flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+			<p class="text-slate-600">Define the organizations that own Teams.</p>
+			<p class="text-sm text-slate-500">{data.total} total</p>
+		</div>
 	</header>
+
+	{#if showCreateOrganization}
+		<section
+			id="create-organization-controls"
+			aria-labelledby="create-organization-heading"
+			class="rounded-xl border border-slate-200 bg-white p-6 shadow-sm"
+		>
+			<div class="flex flex-wrap items-start justify-between gap-3">
+				<h2 id="create-organization-heading" class="text-xl font-semibold">Add an Organization</h2>
+				<button
+					type="button"
+					class="rounded-md border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 focus:ring-2 focus:ring-teal-600 focus:outline-none"
+					onclick={() => (showCreateOrganizationOverride = false)}
+					>Hide add Organization controls</button
+				>
+			</div>
+			{#if form?.message}<p class="mt-4 rounded-md bg-red-50 p-3 text-sm text-red-800" role="alert">
+					{form.message}
+				</p>{/if}
+			{#if form?.success}<p
+					class="mt-4 rounded-md bg-emerald-50 p-3 text-sm text-emerald-800"
+					role="status"
+				>
+					Organization created.
+				</p>{/if}
+			<form method="POST" action="?/create" class="mt-5 grid gap-4">
+				<label
+					><span class="block text-sm font-medium">Organization name</span><input
+						required
+						maxlength="160"
+						name="name"
+						class="mt-1 w-full rounded-md border-slate-300"
+					/></label
+				>
+				<label
+					><span class="block text-sm font-medium">Description</span><textarea
+						maxlength="2000"
+						name="description"
+						rows="3"
+						class="mt-1 w-full rounded-md border-slate-300"></textarea></label
+				>
+				<button
+					class="justify-self-start rounded-md bg-teal-700 px-4 py-2.5 font-semibold text-white hover:bg-teal-800"
+					>Create Organization</button
+				>
+			</form>
+		</section>
+	{/if}
 
 	<form
 		method="GET"
@@ -100,41 +163,4 @@
 				href={resolve('/admin/organizations') + pageQuery(data.page + 1)}>Next</a
 			>{/if}
 	</nav>
-
-	<section
-		aria-labelledby="create-organization-heading"
-		class="rounded-xl border border-slate-200 bg-white p-6 shadow-sm"
-	>
-		<h2 id="create-organization-heading" class="text-xl font-semibold">Add an Organization</h2>
-		{#if form?.message}<p class="mt-4 rounded-md bg-red-50 p-3 text-sm text-red-800" role="alert">
-				{form.message}
-			</p>{/if}
-		{#if form?.success}<p
-				class="mt-4 rounded-md bg-emerald-50 p-3 text-sm text-emerald-800"
-				role="status"
-			>
-				Organization created.
-			</p>{/if}
-		<form method="POST" action="?/create" class="mt-5 grid gap-4">
-			<label
-				><span class="block text-sm font-medium">Organization name</span><input
-					required
-					maxlength="160"
-					name="name"
-					class="mt-1 w-full rounded-md border-slate-300"
-				/></label
-			>
-			<label
-				><span class="block text-sm font-medium">Description</span><textarea
-					maxlength="2000"
-					name="description"
-					rows="3"
-					class="mt-1 w-full rounded-md border-slate-300"></textarea></label
-			>
-			<button
-				class="justify-self-start rounded-md bg-teal-700 px-4 py-2.5 font-semibold text-white hover:bg-teal-800"
-				>Create Organization</button
-			>
-		</form>
-	</section>
 </section>

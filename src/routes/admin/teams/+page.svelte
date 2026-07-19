@@ -4,6 +4,8 @@
 	import { SvelteURLSearchParams } from 'svelte/reactivity';
 	import type { ActionData, PageData } from './$types';
 	let { data, form }: { data: PageData; form: ActionData } = $props();
+	let showCreateTeamOverride = $state<boolean | null>(null);
+	let showCreateTeam = $derived(showCreateTeamOverride ?? Boolean(form?.message || form?.success));
 	function pageQuery(page: number) {
 		const params = new SvelteURLSearchParams({ page: page.toString() });
 		if (data.search) params.set('search', data.search);
@@ -17,14 +19,95 @@
 <svelte:head><title>Teams Admin | Org Teams</title></svelte:head>
 
 <section aria-labelledby="teams-heading" class="space-y-8">
-	<header class="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-		<div>
-			<p class="text-sm font-semibold tracking-wide text-teal-700 uppercase">Administration</p>
-			<h1 id="teams-heading" class="mt-1 text-3xl font-semibold tracking-tight">Teams</h1>
-			<p class="mt-2 text-slate-600">Define Teams within their owning Organizations.</p>
+	<header>
+		<p class="text-sm font-semibold tracking-wide text-teal-700 uppercase">Administration</p>
+		<div class="mt-1 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+			<h1 id="teams-heading" class="text-3xl font-semibold tracking-tight">Teams</h1>
+			{#if !showCreateTeam}
+				<button
+					type="button"
+					aria-controls="create-team-controls"
+					aria-expanded="false"
+					class="rounded-md bg-teal-700 px-4 py-2.5 font-semibold text-white hover:bg-teal-800 focus:ring-2 focus:ring-teal-600 focus:ring-offset-2 focus:outline-none"
+					onclick={() => (showCreateTeamOverride = true)}>Add new Team</button
+				>
+			{/if}
 		</div>
-		<p class="text-sm text-slate-500">{data.total} total</p>
+		<div class="mt-2 flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+			<p class="text-slate-600">Define Teams within their owning Organizations.</p>
+			<p class="text-sm text-slate-500">{data.total} total</p>
+		</div>
 	</header>
+
+	{#if showCreateTeam}
+		<section
+			id="create-team-controls"
+			aria-labelledby="create-team-heading"
+			class="rounded-xl border border-slate-200 bg-white p-6 shadow-sm"
+		>
+			<div class="flex flex-wrap items-start justify-between gap-3">
+				<h2 id="create-team-heading" class="text-xl font-semibold">Add a Team</h2>
+				<button
+					type="button"
+					class="rounded-md border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 focus:ring-2 focus:ring-teal-600 focus:outline-none"
+					onclick={() => (showCreateTeamOverride = false)}>Hide add Team controls</button
+				>
+			</div>
+			{#if form?.message}<p class="mt-4 rounded-md bg-red-50 p-3 text-sm text-red-800" role="alert">
+					{form.message}
+				</p>{/if}{#if form?.success}<p
+					class="mt-4 rounded-md bg-emerald-50 p-3 text-sm text-emerald-800"
+					role="status"
+				>
+					Team created.
+				</p>{/if}
+			<form method="POST" action="?/create" class="mt-5 grid gap-4 sm:grid-cols-2">
+				<label
+					><span class="block text-sm font-medium">Team name</span><input
+						required
+						maxlength="160"
+						name="name"
+						class="mt-1 w-full rounded-md border-slate-300"
+					/></label
+				><label
+					><span class="block text-sm font-medium">Owning Organization</span><select
+						required
+						name="organizationId"
+						class="mt-1 w-full rounded-md border-slate-300"
+						><option value="">Select an active Organization</option
+						>{#each data.organizations.filter((owner) => owner.status === 'active') as owner (owner.id)}<option
+								value={owner.id}>{owner.name}</option
+							>{/each}</select
+					></label
+				><label
+					><span class="block text-sm font-medium">Team type</span><select
+						required
+						name="type"
+						class="mt-1 w-full rounded-md border-slate-300"
+						>{#each data.teamTypes as option (option.value)}<option value={option.value}
+								>{option.label}</option
+							>{/each}</select
+					></label
+				><label
+					><span class="block text-sm font-medium">Initial status</span><select
+						name="status"
+						class="mt-1 w-full rounded-md border-slate-300"
+						><option value="active">Active</option><option value="inactive">Inactive</option
+						></select
+					></label
+				><label class="sm:col-span-2"
+					><span class="block text-sm font-medium">Purpose</span><textarea
+						maxlength="2000"
+						name="purpose"
+						rows="3"
+						class="mt-1 w-full rounded-md border-slate-300"></textarea></label
+				><button
+					class="justify-self-start rounded-md bg-teal-700 px-4 py-2.5 font-semibold text-white hover:bg-teal-800 sm:col-span-2"
+					>Create Team</button
+				>
+			</form>
+		</section>
+	{/if}
 
 	<form
 		method="GET"
@@ -115,63 +198,4 @@
 				href={resolve('/admin/teams') + pageQuery(data.page + 1)}>Next</a
 			>{/if}
 	</nav>
-
-	<section
-		aria-labelledby="create-team-heading"
-		class="rounded-xl border border-slate-200 bg-white p-6 shadow-sm"
-	>
-		<h2 id="create-team-heading" class="text-xl font-semibold">Add a Team</h2>
-		{#if form?.message}<p class="mt-4 rounded-md bg-red-50 p-3 text-sm text-red-800" role="alert">
-				{form.message}
-			</p>{/if}{#if form?.success}<p
-				class="mt-4 rounded-md bg-emerald-50 p-3 text-sm text-emerald-800"
-				role="status"
-			>
-				Team created.
-			</p>{/if}
-		<form method="POST" action="?/create" class="mt-5 grid gap-4 sm:grid-cols-2">
-			<label
-				><span class="block text-sm font-medium">Team name</span><input
-					required
-					maxlength="160"
-					name="name"
-					class="mt-1 w-full rounded-md border-slate-300"
-				/></label
-			><label
-				><span class="block text-sm font-medium">Owning Organization</span><select
-					required
-					name="organizationId"
-					class="mt-1 w-full rounded-md border-slate-300"
-					><option value="">Select an active Organization</option
-					>{#each data.organizations.filter((owner) => owner.status === 'active') as owner (owner.id)}<option
-							value={owner.id}>{owner.name}</option
-						>{/each}</select
-				></label
-			><label
-				><span class="block text-sm font-medium">Team type</span><select
-					required
-					name="type"
-					class="mt-1 w-full rounded-md border-slate-300"
-					>{#each data.teamTypes as option (option.value)}<option value={option.value}
-							>{option.label}</option
-						>{/each}</select
-				></label
-			><label
-				><span class="block text-sm font-medium">Initial status</span><select
-					name="status"
-					class="mt-1 w-full rounded-md border-slate-300"
-					><option value="active">Active</option><option value="inactive">Inactive</option></select
-				></label
-			><label class="sm:col-span-2"
-				><span class="block text-sm font-medium">Purpose</span><textarea
-					maxlength="2000"
-					name="purpose"
-					rows="3"
-					class="mt-1 w-full rounded-md border-slate-300"></textarea></label
-			><button
-				class="justify-self-start rounded-md bg-teal-700 px-4 py-2.5 font-semibold text-white hover:bg-teal-800 sm:col-span-2"
-				>Create Team</button
-			>
-		</form>
-	</section>
 </section>

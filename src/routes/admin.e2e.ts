@@ -33,7 +33,12 @@ test('development administrator manages a Person and attaches standard login', a
 	await expect(page.getByRole('alert')).toContainText('cannot ban themselves');
 
 	await page.goto('/admin/people');
-
+	await expect(page.getByLabel('Display name')).toHaveCount(0);
+	await page.getByRole('button', { name: 'Add new person' }).click();
+	await expect(page.getByRole('heading', { name: 'Add a person without login' })).toBeVisible();
+	await page.getByRole('button', { name: 'Hide add person controls' }).click();
+	await expect(page.getByLabel('Display name')).toHaveCount(0);
+	await page.getByRole('button', { name: 'Add new person' }).click();
 	await page.getByLabel('Display name').fill(displayName);
 	await page.getByLabel('Employee identifier').fill(`E2E-${suffix}`);
 	await page.getByLabel('Job title').fill('Initial title');
@@ -117,6 +122,60 @@ test('anonymous visitors are redirected before admin data loads', async ({ page 
 	await expect(page.getByRole('link', { name: 'Admin' })).toHaveCount(0);
 });
 
+test('administrator toggles creation controls above each directory', async ({ page }) => {
+	await loginAsDeveloper(page);
+	for (const directory of [
+		{
+			path: '/admin/people',
+			title: 'People',
+			description: 'Manage Person profiles and their optional login access.',
+			show: 'Add new person',
+			hide: 'Hide add person controls',
+			field: 'Display name'
+		},
+		{
+			path: '/admin/organizations',
+			title: 'Organizations',
+			description: 'Define the organizations that own Teams.',
+			show: 'Add new Organization',
+			hide: 'Hide add Organization controls',
+			field: 'Organization name'
+		},
+		{
+			path: '/admin/teams',
+			title: 'Teams',
+			description: 'Define Teams within their owning Organizations.',
+			show: 'Add new Team',
+			hide: 'Hide add Team controls',
+			field: 'Team name'
+		}
+	] as const) {
+		await page.goto(directory.path);
+		await expect(page.getByLabel(directory.field)).toHaveCount(0);
+		const showButton = page.getByRole('button', { name: directory.show });
+		const total = page.getByText(/^\d+ total$/);
+		const description = page.getByText(directory.description, { exact: true });
+		const titleBox = (await page.getByRole('heading', { name: directory.title }).boundingBox())!;
+		const buttonBox = (await showButton.boundingBox())!;
+		const totalBox = (await total.boundingBox())!;
+		const descriptionBox = (await description.boundingBox())!;
+		expect(Math.abs(titleBox.y - buttonBox.y)).toBeLessThan(2);
+		expect(totalBox.y).toBeGreaterThanOrEqual(buttonBox.y + buttonBox.height);
+		expect(
+			Math.abs(descriptionBox.y + descriptionBox.height / 2 - (totalBox.y + totalBox.height / 2))
+		).toBeLessThan(2);
+		await showButton.click();
+		const field = page.getByLabel(directory.field);
+		await expect(field).toBeVisible();
+		const formTop = (await field.boundingBox())!.y;
+		const tableTop = (await page.getByRole('table').boundingBox())!.y;
+		expect(formTop).toBeLessThan(tableTop);
+		await page.getByRole('button', { name: directory.hide }).click();
+		await expect(field).toHaveCount(0);
+		await expect(page.getByRole('button', { name: directory.show })).toBeVisible();
+	}
+});
+
 test('administrator defines, transfers, and safely deactivates Organizations and Teams', async ({
 	page
 }) => {
@@ -136,6 +195,7 @@ test('administrator defines, transfers, and safely deactivates Organizations and
 		.getByRole('navigation', { name: 'Administration' })
 		.getByRole('link', { name: 'Organizations' })
 		.click();
+	await page.getByRole('button', { name: 'Add new Organization' }).click();
 
 	for (const name of [sourceName, destinationName]) {
 		await page.getByLabel('Organization name').fill(name);
@@ -149,12 +209,16 @@ test('administrator defines, transfers, and safely deactivates Organizations and
 		.getByRole('link', { name: 'Teams' })
 		.click();
 	await page.waitForLoadState('networkidle');
+	await page.getByRole('button', { name: 'Add new Team' }).click();
+	const createTeamForm = page
+		.getByRole('heading', { name: 'Add a Team' })
+		.locator('xpath=ancestor::section[1]');
 	for (const owner of [sourceName, destinationName]) {
-		await page.getByLabel('Team name').fill(teamName);
-		await page.getByLabel('Owning Organization').selectOption({ label: owner });
-		await page.getByLabel('Team type').last().selectOption('product');
-		await page.getByLabel('Purpose').fill(`Owned by ${owner}`);
-		await page.getByRole('button', { name: 'Create Team' }).click();
+		await createTeamForm.getByLabel('Team name').fill(teamName);
+		await createTeamForm.getByLabel('Owning Organization').selectOption({ label: owner });
+		await createTeamForm.getByLabel('Team type').selectOption('product');
+		await createTeamForm.getByLabel('Purpose').fill(`Owned by ${owner}`);
+		await createTeamForm.getByRole('button', { name: 'Create Team' }).click();
 		await expect(page.getByRole('status')).toContainText('Team created');
 	}
 
@@ -229,7 +293,10 @@ test('administrator builds a Team hierarchy and manages hierarchy-derived superv
 
 	async function createPerson(displayName: string) {
 		await page.goto('/admin/people');
-		const form = page.getByRole('heading', { name: 'Add a person without login' }).locator('..');
+		await page.getByRole('button', { name: 'Add new person' }).click();
+		const form = page
+			.getByRole('heading', { name: 'Add a person without login' })
+			.locator('xpath=ancestor::section[1]');
 		await form.getByLabel('Display name').fill(displayName);
 		await form.getByRole('button', { name: 'Create person' }).click();
 		await expect(page.getByRole('status')).toContainText('Person created');
@@ -241,7 +308,10 @@ test('administrator builds a Team hierarchy and manages hierarchy-derived superv
 
 	async function createOrganization(name: string) {
 		await page.goto('/admin/organizations');
-		const form = page.getByRole('heading', { name: 'Add an Organization' }).locator('..');
+		await page.getByRole('button', { name: 'Add new Organization' }).click();
+		const form = page
+			.getByRole('heading', { name: 'Add an Organization' })
+			.locator('xpath=ancestor::section[1]');
 		await form.getByLabel('Organization name').fill(name);
 		await form.getByRole('button', { name: 'Create Organization' }).click();
 		await expect(page.getByRole('status')).toContainText('Organization created');
@@ -249,7 +319,10 @@ test('administrator builds a Team hierarchy and manages hierarchy-derived superv
 
 	async function createTeam(name: string, owner: string) {
 		await page.goto('/admin/teams');
-		const form = page.getByRole('heading', { name: 'Add a Team' }).locator('..');
+		await page.getByRole('button', { name: 'Add new Team' }).click();
+		const form = page
+			.getByRole('heading', { name: 'Add a Team' })
+			.locator('xpath=ancestor::section[1]');
 		await form.getByLabel('Team name').fill(name);
 		await form.getByLabel('Owning Organization').selectOption({ label: owner });
 		await form.getByLabel('Team type').selectOption('functional');
@@ -392,13 +465,29 @@ test('administrator manages Team membership from Team and Person perspectives', 
 		.getByRole('navigation', { name: 'Administration' })
 		.getByRole('link', { name: 'Organizations' })
 		.click();
-	const organizationForm = page.getByRole('heading', { name: 'Add an Organization' }).locator('..');
+	await expect(page.getByLabel('Organization name')).toHaveCount(0);
+	await page.getByRole('button', { name: 'Add new Organization' }).click();
+	await expect(page.getByRole('heading', { name: 'Add an Organization' })).toBeVisible();
+	await page.getByRole('button', { name: 'Hide add Organization controls' }).click();
+	await expect(page.getByLabel('Organization name')).toHaveCount(0);
+	await page.getByRole('button', { name: 'Add new Organization' }).click();
+	const organizationForm = page
+		.getByRole('heading', { name: 'Add an Organization' })
+		.locator('xpath=ancestor::section[1]');
 	await organizationForm.getByLabel('Organization name').fill(organizationName);
 	await organizationForm.getByRole('button', { name: 'Create Organization' }).click();
 	await expect(page.getByRole('status')).toContainText('Organization created');
 
 	await page.goto('/admin/teams');
-	const teamForm = page.getByRole('heading', { name: 'Add a Team' }).locator('..');
+	await expect(page.getByLabel('Team name')).toHaveCount(0);
+	await page.getByRole('button', { name: 'Add new Team' }).click();
+	await expect(page.getByRole('heading', { name: 'Add a Team' })).toBeVisible();
+	await page.getByRole('button', { name: 'Hide add Team controls' }).click();
+	await expect(page.getByLabel('Team name')).toHaveCount(0);
+	await page.getByRole('button', { name: 'Add new Team' }).click();
+	const teamForm = page
+		.getByRole('heading', { name: 'Add a Team' })
+		.locator('xpath=ancestor::section[1]');
 	await teamForm.getByLabel('Team name').fill(teamName);
 	await teamForm.getByLabel('Owning Organization').selectOption({ label: organizationName });
 	await teamForm.getByLabel('Team type').selectOption('functional');
@@ -406,9 +495,10 @@ test('administrator manages Team membership from Team and Person perspectives', 
 	await expect(page.getByRole('status')).toContainText('Team created');
 
 	await page.goto('/admin/people');
+	await page.getByRole('button', { name: 'Add new person' }).click();
 	const personForm = page
 		.getByRole('heading', { name: 'Add a person without login' })
-		.locator('..');
+		.locator('xpath=ancestor::section[1]');
 	await personForm.getByLabel('Display name').fill(memberName);
 	await personForm.getByRole('button', { name: 'Create person' }).click();
 	await expect(page.getByRole('status')).toContainText('Person created');

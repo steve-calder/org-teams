@@ -119,7 +119,7 @@ The system SHALL accept the Team type codes `department`, `functional`, `product
 
 ### Requirement: Organization and Team directories
 
-The administration console SHALL provide separate searchable, bounded, paginated Organization and Team directories. The Organization directory SHALL filter by lifecycle status. The Team directory SHALL filter by lifecycle status, owning Organization, and Team type and SHALL identify the owning Organization in every result.
+The administration console SHALL provide separate searchable, bounded, paginated Organization and Team directories. The Organization directory SHALL filter by lifecycle status. The Team directory SHALL filter by lifecycle status, owning Organization, and Team type and SHALL identify the owning Organization in every result. Organization and Team creation controls SHALL be initially collapsed, SHALL be revealed above their respective directory through `Add new Organization` and `Add new Team` controls aligned opposite their directory titles, and SHALL each provide a control that hides them again.
 
 #### Scenario: Administrator searches Organizations
 
@@ -135,6 +135,16 @@ The administration console SHALL provide separate searchable, bounded, paginated
 
 - **WHEN** a client requests an unsupported page size or invalid page number
 - **THEN** the server normalizes the request to configured safe pagination bounds
+
+#### Scenario: Administrator toggles Organization creation controls
+
+- **WHEN** an administrator activates `Add new Organization` from the Organization directory
+- **THEN** the Organization creation controls appear above the filters and directory table and provide a control that hides them again
+
+#### Scenario: Administrator toggles Team creation controls
+
+- **WHEN** an administrator activates `Add new Team` from the Team directory
+- **THEN** the Team creation controls appear above the filters and directory table and provide a control that hides them again
 
 ### Requirement: Organization and Team lifecycle integrity
 

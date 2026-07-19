@@ -21,7 +21,7 @@ async function login(page: import('@playwright/test').Page, email: string, passw
 	);
 	await page.getByRole('button', { name: 'Login' }).click();
 	await loginResponsePromise;
-	await expect(page).toHaveURL('/protected');
+	await expect(page).toHaveURL('/');
 }
 
 test('authenticated non-admin explores a read-only Organization chart', async ({ page }) => {

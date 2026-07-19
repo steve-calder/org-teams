@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 
-test('developer can log in, access the protected page, and log out', async ({ page }) => {
+test('developer logs in to the authenticated home page and logs out', async ({ page }) => {
 	await page.goto('/login');
 
 	await expect(page.getByRole('link', { name: 'Login' })).toBeVisible();
@@ -12,11 +12,10 @@ test('developer can log in, access the protected page, and log out', async ({ pa
 	await page.getByLabel('Password').fill('password');
 	await page.getByRole('button', { name: 'Login' }).click();
 
-	await expect(page).toHaveURL('/protected');
+	await expect(page).toHaveURL('/');
 	await expect(page.getByRole('banner')).toBeVisible();
 	await expect(page.getByRole('main')).toHaveCount(1);
-	await expect(page.getByText('Authenticated')).toBeVisible();
-	await expect(page.getByText('dev@org-teams.local')).toBeVisible();
+	await expect(page.getByRole('heading', { name: 'Welcome, Developer' })).toBeVisible();
 	await expect(page.getByRole('button', { name: 'Logout' })).toBeVisible();
 	await expect(page.getByRole('link', { name: 'Login' })).toHaveCount(0);
 
@@ -25,6 +24,6 @@ test('developer can log in, access the protected page, and log out', async ({ pa
 	await expect(page.getByRole('link', { name: 'Login' })).toBeVisible();
 	await expect(page.getByRole('button', { name: 'Logout' })).toHaveCount(0);
 
-	await page.goto('/protected');
-	await expect(page).toHaveURL('/login');
+	const removedProtectedPage = await page.goto('/protected');
+	expect(removedProtectedPage?.status()).toBe(404);
 });

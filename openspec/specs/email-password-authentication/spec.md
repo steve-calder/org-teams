@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Define email/password login, development-account provisioning, protected access, session persistence, and logout behavior.
+Define email/password login, development-account provisioning, authenticated landing, session persistence, and logout behavior.
 
 ## Requirements
 
@@ -18,7 +18,7 @@ The application SHALL provide a `/login` page containing an email field, passwor
 #### Scenario: Authenticated user opens login
 
 - **WHEN** a user with a valid session requests `/login`
-- **THEN** the application redirects the user to `/protected`
+- **THEN** the application redirects the user to `/`
 
 ### Requirement: Default development account
 
@@ -56,7 +56,7 @@ The login form SHALL authenticate credentials through Better Auth on the server 
 #### Scenario: Valid credentials are submitted
 
 - **WHEN** a user submits valid email and password credentials
-- **THEN** the application establishes a session and redirects the user to `/protected`
+- **THEN** the application establishes a session and redirects the user to `/`
 
 #### Scenario: Invalid credentials are submitted
 
@@ -68,20 +68,6 @@ The login form SHALL authenticate credentials through Better Auth on the server 
 - **WHEN** a user submits the login form without an email or password
 - **THEN** the application rejects the submission without calling the authentication provider and identifies the missing form input
 
-### Requirement: Protected page
-
-The application SHALL provide a `/protected` page whose server load requires a valid authenticated session and linked Person. Client-side navigation visibility SHALL NOT be the access control.
-
-#### Scenario: Anonymous user opens protected page
-
-- **WHEN** a request without a valid session accesses `/protected`
-- **THEN** the server redirects the request to `/login`
-
-#### Scenario: Authenticated user opens protected page
-
-- **WHEN** a user with a valid session and linked Person accesses `/protected`
-- **THEN** the page loads and displays a minimal authenticated state containing no sensitive session or credential values
-
 ### Requirement: Session persistence
 
 The server hook SHALL resolve a valid Better Auth session on subsequent requests and place only the authenticated user, session, and linked Person required by server routes into request locals.
@@ -89,18 +75,18 @@ The server hook SHALL resolve a valid Better Auth session on subsequent requests
 #### Scenario: Authenticated user makes a subsequent request
 
 - **WHEN** a request includes a valid session cookie
-- **THEN** the protected server load recognizes the same authenticated account and linked Person without requiring another login
+- **THEN** the root server load recognizes the same authenticated account and linked Person and presents the authenticated home page without requiring another login
 
 #### Scenario: Expired or invalid session is presented
 
 - **WHEN** a request includes an expired or invalid session cookie
-- **THEN** the request is treated as anonymous and cannot access `/protected`
+- **THEN** the request is treated as anonymous and cannot access authenticated-only routes
 
 ### Requirement: Logout
 
-The protected page SHALL provide a logout control that invalidates the Better Auth session on the server and redirects to `/login`.
+The authenticated application shell SHALL provide a logout control that invalidates the Better Auth session on the server and redirects to `/login`.
 
 #### Scenario: Authenticated user logs out
 
 - **WHEN** an authenticated user submits the logout action
-- **THEN** the session is invalidated, the user is redirected to `/login`, and the prior session can no longer access `/protected`
+- **THEN** the session is invalidated, the user is redirected to `/login`, and the prior session can no longer access authenticated-only routes

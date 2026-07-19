@@ -8,7 +8,7 @@ async function loginAsDeveloper(page: import('@playwright/test').Page) {
 	await page.getByLabel('Email').fill(DEV_EMAIL);
 	await page.getByLabel('Password').fill(DEV_PASSWORD);
 	await page.getByRole('button', { name: 'Login' }).click();
-	await expect(page).toHaveURL('/protected');
+	await expect(page).toHaveURL('/');
 }
 
 test('development administrator manages a Person and attaches standard login', async ({
@@ -96,7 +96,7 @@ test('development administrator manages a Person and attaches standard login', a
 	);
 	await standardUserPage.getByRole('button', { name: 'Login' }).click();
 	expect((await loginResponsePromise).status()).toBe(303);
-	await expect(standardUserPage).toHaveURL('/protected');
+	await expect(standardUserPage).toHaveURL('/');
 	await expect(standardUserPage.getByRole('link', { name: 'Admin' })).toHaveCount(0);
 
 	const directAdminResponse = await standardUserPage.goto('/admin/people');

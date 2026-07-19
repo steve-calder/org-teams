@@ -36,7 +36,7 @@ describe('/login server', () => {
 	it('redirects an authenticated user', async () => {
 		await expect(async () => load({ locals: { user: {} } } as never)).rejects.toMatchObject({
 			status: 303,
-			location: '/protected'
+			location: '/'
 		});
 	});
 
@@ -73,14 +73,14 @@ describe('/login server', () => {
 		expect(JSON.stringify(result)).not.toContain('not-the-password');
 	});
 
-	it('authenticates valid credentials and redirects to the protected page', async () => {
+	it('authenticates valid credentials and redirects to the authenticated home page', async () => {
 		signInEmail.mockResolvedValue({ user: { id: 'auth-user' } });
 
 		await expect(async () =>
 			actions.default!({
 				request: loginRequest('person@example.test', 'valid-password')
 			} as never)
-		).rejects.toMatchObject({ status: 303, location: '/protected' });
+		).rejects.toMatchObject({ status: 303, location: '/' });
 		expect(signInEmail).toHaveBeenCalledWith({
 			body: { email: 'person@example.test', password: 'valid-password' }
 		});

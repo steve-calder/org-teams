@@ -8,7 +8,7 @@ async function loginAsDeveloper(page: import('@playwright/test').Page) {
 	await page.getByLabel('Email').fill(DEV_EMAIL);
 	await page.getByLabel('Password').fill(DEV_PASSWORD);
 	await page.getByRole('button', { name: 'Login' }).click();
-	await expect(page).toHaveURL('/protected');
+	await expect(page).toHaveURL('/');
 }
 
 test('anonymous routes share the branded shell and home navigation', async ({ page }) => {

@@ -6,7 +6,7 @@ import { DEV_CREDENTIALS } from '$lib/server/dev-account';
 import type { Actions, PageServerLoad } from './$types';
 
 export const load: PageServerLoad = ({ locals }) => {
-	if (locals.user) redirect(303, '/protected');
+	if (locals.user) redirect(303, '/');
 	return {
 		devCredentials: dev ? DEV_CREDENTIALS : null
 	};
@@ -39,6 +39,6 @@ export const actions: Actions = {
 			throw error;
 		}
 
-		redirect(303, '/protected');
+		redirect(303, '/');
 	}
 };

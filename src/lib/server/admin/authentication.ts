@@ -1,5 +1,6 @@
 import { and, count, eq, ne, sql } from 'drizzle-orm';
 import { auth } from '$lib/server/auth';
+import { MIN_PASSWORD_LENGTH } from '$lib/server/auth-core';
 import { db } from '$lib/server/db';
 import { person, user } from '$lib/server/db/schema';
 import { hasAdminRole } from './authorization';
@@ -59,7 +60,8 @@ export async function addLoginToPerson(
 	const normalizedEmail = email.trim().toLowerCase();
 	if (!normalizedEmail || !normalizedEmail.includes('@'))
 		throw new Error('Enter a valid email address.');
-	if (password.length < 8) throw new Error('Password must be at least 8 characters.');
+	if (password.length < MIN_PASSWORD_LENGTH)
+		throw new Error(`Password must be at least ${MIN_PASSWORD_LENGTH} characters.`);
 
 	let createdAuthUserId: string | undefined;
 	let generatedPersonId: string | undefined;
@@ -159,7 +161,8 @@ export async function replaceUserPassword(
 	context: AdminMutationContext
 ) {
 	const target = await getRequiredLinkedPerson(personId);
-	if (newPassword.length < 8) throw new Error('Password must be at least 8 characters.');
+	if (newPassword.length < MIN_PASSWORD_LENGTH)
+		throw new Error(`Password must be at least ${MIN_PASSWORD_LENGTH} characters.`);
 	await auth.api.setUserPassword({
 		body: { userId: target.auth.id, newPassword },
 		headers: context.headers

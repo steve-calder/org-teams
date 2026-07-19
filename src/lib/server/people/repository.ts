@@ -1,29 +1,9 @@
-import { eq } from 'drizzle-orm';
 import { db } from '$lib/server/db';
-import { person, type Person } from '$lib/server/db/person.schema';
+import { createPersonRepository } from './repository-core';
 
-export async function findPersonByAuthUserId(authUserId: string): Promise<Person | undefined> {
-	return db.query.person.findFirst({
-		where: eq(person.authUserId, authUserId)
-	});
-}
+export { createPersonRepository } from './repository-core';
 
-export async function ensurePersonForAuthUser(
-	authUserId: string,
-	displayName: string
-): Promise<Person> {
-	const [created] = await db
-		.insert(person)
-		.values({ authUserId, displayName })
-		.onConflictDoNothing({ target: person.authUserId })
-		.returning();
+const personRepository = createPersonRepository(db);
 
-	if (created) return created;
-
-	const existing = await findPersonByAuthUserId(authUserId);
-	if (!existing) {
-		throw new Error('Unable to resolve the Person linked to the authenticated user');
-	}
-
-	return existing;
-}
+export const findPersonByAuthUserId = personRepository.findPersonByAuthUserId;
+export const ensurePersonForAuthUser = personRepository.ensurePersonForAuthUser;

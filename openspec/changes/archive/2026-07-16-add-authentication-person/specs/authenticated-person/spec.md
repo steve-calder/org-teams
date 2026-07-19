@@ -43,4 +43,3 @@ After successful session resolution, protected server routes SHALL obtain the li
 #### Scenario: Client supplies another Person identifier
 - **WHEN** an authenticated client attempts to claim a different Person identifier
 - **THEN** the protected page ignores the claimed identifier and continues using the server-resolved Person
-

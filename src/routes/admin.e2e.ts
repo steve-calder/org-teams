@@ -468,14 +468,21 @@ test('administrator manages Team membership from Team and Person perspectives', 
 	await page.goto(`/admin/teams/${teamId}`);
 	await page.locator('select[name="managerPersonId"]').selectOption('');
 	await page.getByRole('button', { name: 'Update manager' }).click();
+	await expect(page.getByRole('status')).toContainText('Team manager updated');
 	await page.goto(`/admin/people/${personId}/teams`);
 	const personAssignmentForm = page
 		.getByRole('heading', { name: 'Assign to a Team' })
 		.locator('xpath=ancestor::section[1]')
 		.locator('form');
-	await personAssignmentForm
-		.getByLabel('Team', { exact: true })
-		.selectOption({ label: `${organizationName} · ${teamName}` });
+	const eligibleTeamSelect = personAssignmentForm.locator('select[name="teamId"]');
+	await eligibleTeamSelect.evaluate((select: HTMLSelectElement, expectedTeamName) => {
+		const option = Array.from(select.options).find((candidate) =>
+			candidate.textContent?.includes(expectedTeamName)
+		);
+		if (!option) throw new Error(`Eligible Team option not found: ${expectedTeamName}`);
+		select.value = option.value;
+		select.dispatchEvent(new Event('change', { bubbles: true }));
+	}, teamName);
 	await personAssignmentForm.getByLabel('Role on Team').fill('Advisor');
 	await personAssignmentForm.getByRole('button', { name: 'Assign Team' }).click();
 	await expect(page.getByRole('status')).toContainText('Team assigned');

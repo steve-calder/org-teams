@@ -1,7 +1,15 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 import { count, eq } from 'drizzle-orm';
 import { db } from '$lib/server/db';
-import { account, person, session, user } from '$lib/server/db/schema';
+import {
+	account,
+	adminAuditEvent,
+	person,
+	session,
+	team,
+	teamMembership,
+	user
+} from '$lib/server/db/schema';
 import { DEV_CREDENTIALS, ensureDevAccount } from './dev-account';
 
 beforeAll(async () => {
@@ -10,6 +18,17 @@ beforeAll(async () => {
 	});
 	if (!existing) return;
 
+	const existingPerson = await db.query.person.findFirst({
+		where: eq(person.authUserId, existing.id)
+	});
+	if (existingPerson) {
+		await db.delete(adminAuditEvent).where(eq(adminAuditEvent.targetPersonId, existingPerson.id));
+		await db.delete(teamMembership).where(eq(teamMembership.personId, existingPerson.id));
+		await db
+			.update(team)
+			.set({ managerPersonId: null })
+			.where(eq(team.managerPersonId, existingPerson.id));
+	}
 	await db.delete(person).where(eq(person.authUserId, existing.id));
 	await db.delete(user).where(eq(user.id, existing.id));
 });

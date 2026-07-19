@@ -20,7 +20,7 @@
 <div class="min-h-screen bg-slate-50 text-slate-950">
 	<header class="border-b border-slate-200 bg-white shadow-sm">
 		<div
-			class="mx-auto flex min-h-18 w-full max-w-6xl items-center justify-between gap-4 px-4 py-3 sm:px-6 lg:px-8"
+			class="mx-auto flex min-h-18 w-full max-w-6xl flex-wrap items-center justify-between gap-3 px-4 py-3 sm:flex-nowrap sm:gap-4 sm:px-6 lg:px-8"
 		>
 			<a
 				href={resolve('/')}
@@ -35,7 +35,19 @@
 				</span>
 			</a>
 
-			<nav aria-label="Account navigation" class="flex shrink-0 items-center gap-2 sm:gap-3">
+			<nav
+				aria-label="Account navigation"
+				class="flex w-full flex-wrap items-center justify-end gap-2 sm:w-auto sm:shrink-0 sm:flex-nowrap sm:gap-3"
+			>
+				{#if data.authenticated}
+					<a
+						href={resolve('/organization-chart')}
+						class="inline-flex min-h-11 items-center rounded-md px-3 py-2 text-sm font-semibold text-teal-800 hover:bg-teal-50 focus:ring-2 focus:ring-teal-600 focus:ring-offset-2 focus:outline-none sm:px-4"
+					>
+						Organization chart
+					</a>
+				{/if}
+
 				{#if data.isAdmin}
 					<a
 						href={resolve('/admin/people')}

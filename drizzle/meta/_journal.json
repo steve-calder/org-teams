@@ -1,0 +1,41 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1784065853557,
+      "tag": "0000_elite_fallen_one",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1784249628401,
+      "tag": "0001_funny_the_fury",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1784316440469,
+      "tag": "0002_add-organization-team-administration",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1784384384441,
+      "tag": "0003_add-team-hierarchy",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1784395548377,
+      "tag": "0004_add-team-memberships",
+      "breakpoints": true
+    }
+  ]
+}

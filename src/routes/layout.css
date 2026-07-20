@@ -1,0 +1,14 @@
+@import 'tailwindcss';
+@plugin '@tailwindcss/forms';
+@plugin '@tailwindcss/typography';
+
+@layer base {
+	html {
+		background-color: var(--color-slate-50);
+	}
+
+	body {
+		margin: 0;
+		min-width: 20rem;
+	}
+}

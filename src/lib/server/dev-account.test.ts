@@ -1,0 +1,63 @@
+import { beforeAll, describe, expect, it } from 'vitest';
+import { count, eq } from 'drizzle-orm';
+import { db } from '$lib/server/db';
+import {
+	account,
+	adminAuditEvent,
+	person,
+	session,
+	team,
+	teamMembership,
+	user
+} from '$lib/server/db/schema';
+import { DEV_CREDENTIALS, ensureDevAccount } from './dev-account';
+
+beforeAll(async () => {
+	const existing = await db.query.user.findFirst({
+		where: eq(user.email, DEV_CREDENTIALS.email)
+	});
+	if (!existing) return;
+
+	const existingPerson = await db.query.person.findFirst({
+		where: eq(person.authUserId, existing.id)
+	});
+	if (existingPerson) {
+		await db.delete(adminAuditEvent).where(eq(adminAuditEvent.targetPersonId, existingPerson.id));
+		await db.delete(teamMembership).where(eq(teamMembership.personId, existingPerson.id));
+		await db
+			.update(team)
+			.set({ managerPersonId: null })
+			.where(eq(team.managerPersonId, existingPerson.id));
+	}
+	await db.delete(person).where(eq(person.authUserId, existing.id));
+	await db.delete(user).where(eq(user.id, existing.id));
+});
+
+describe('development account', () => {
+	it('provisions one credential account and linked Person without a session', async () => {
+		await ensureDevAccount();
+		await ensureDevAccount();
+
+		const devUser = await db.query.user.findFirst({
+			where: eq(user.email, DEV_CREDENTIALS.email)
+		});
+		expect(devUser).toMatchObject({ role: 'admin' });
+
+		const [accountCount] = await db
+			.select({ value: count() })
+			.from(account)
+			.where(eq(account.userId, devUser!.id));
+		const [personCount] = await db
+			.select({ value: count() })
+			.from(person)
+			.where(eq(person.authUserId, devUser!.id));
+		const [sessionCount] = await db
+			.select({ value: count() })
+			.from(session)
+			.where(eq(session.userId, devUser!.id));
+
+		expect(accountCount.value).toBe(1);
+		expect(personCount.value).toBe(1);
+		expect(sessionCount.value).toBe(0);
+	});
+});

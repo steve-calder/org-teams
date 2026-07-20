@@ -37,8 +37,16 @@
 					<dd class="text-slate-600">{team.manager?.displayName ?? 'No manager assigned'}</dd>
 				</div>
 				<div>
-					<dt class="font-medium text-slate-700">Participants</dt>
-					<dd class="text-slate-600">{team.participantCount}</dd>
+					<dt class="font-medium text-slate-700">Team members ({team.members.length})</dt>
+					<dd class="text-slate-600">
+						{#if team.members.length}
+							<ul class="mt-1 space-y-1">
+								{#each team.members as member (member.id)}
+									<li>{member.displayName}</li>
+								{/each}
+							</ul>
+						{:else}No team members{/if}
+					</dd>
 				</div>
 				<div>
 					<dt class="font-medium text-slate-700">Parent Team</dt>

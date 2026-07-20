@@ -25,6 +25,7 @@ const team = (
 	status,
 	parentTeamId: null,
 	manager: null,
+	members: [],
 	ordinaryMembershipCount: 0,
 	participantCount: 0,
 	children

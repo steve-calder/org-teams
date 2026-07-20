@@ -287,29 +287,6 @@
 				</div>
 				<TeamDetails team={selectedTeam} roots={projection.visibleRoots} onselect={selectTeam} />
 			</div>
-
-			{#if view === 'chart'}
-				<details class="rounded-xl border border-slate-200 bg-white p-4">
-					<summary class="cursor-pointer font-semibold text-teal-800">
-						Accessible hierarchy list
-					</summary>
-					<div class="mt-4">
-						<OrganizationTree
-							roots={projection.revealedRoots}
-							allRoots={projection.visibleRoots}
-							{selectedTeamId}
-							{pivotTeamId}
-							onselect={selectTeam}
-							onpivot={pivotTeam}
-							organizationName={data.chart?.organization.name}
-							{organizationExpanded}
-							{expandedTeamIds}
-							ontoggleorganization={toggleOrganization}
-							ontoggleteam={toggleTeam}
-						/>
-					</div>
-				</details>
-			{/if}
 		{:else}
 			<p class="rounded-xl border border-slate-200 bg-white p-8 text-center text-slate-600">
 				{data.chart?.total

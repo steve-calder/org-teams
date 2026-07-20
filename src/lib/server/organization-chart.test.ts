@@ -112,11 +112,16 @@ describe('authenticated organization chart read model', () => {
 		const chart = await getOrganizationChart(owner.id);
 		expect(chart?.roots.find(({ id }) => id === managed.id)).toMatchObject({
 			manager: { id: manager.id, displayName: 'Chart manager' },
+			members: [
+				{ id: manager.id, displayName: 'Chart manager' },
+				{ id: member.id, displayName: 'Chart member' }
+			],
 			ordinaryMembershipCount: 1,
 			participantCount: 2
 		});
 		expect(chart?.roots.find(({ id }) => id === unmanaged.id)).toMatchObject({
 			manager: null,
+			members: [],
 			ordinaryMembershipCount: 0,
 			participantCount: 0
 		});

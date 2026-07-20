@@ -11,6 +11,11 @@ const child: OrganizationChartTeam = {
 	status: 'active',
 	parentTeamId: 'root',
 	manager: { id: 'manager', displayName: 'Morgan Manager', status: 'active' },
+	members: [
+		{ id: 'member', displayName: 'Alex Member' },
+		{ id: 'manager', displayName: 'Morgan Manager' },
+		{ id: 'member-2', displayName: 'Taylor Member' }
+	],
 	ordinaryMembershipCount: 2,
 	participantCount: 3,
 	children: []
@@ -22,6 +27,7 @@ const root: OrganizationChartTeam = {
 	status: 'active',
 	parentTeamId: null,
 	manager: null,
+	members: [],
 	ordinaryMembershipCount: 0,
 	participantCount: 0,
 	children: [child]
@@ -43,6 +49,7 @@ describe('read-only organization chart components', () => {
 		await expect
 			.element(screen.getByText('Managed by Morgan Manager', { exact: false }))
 			.toBeVisible();
+		await expect.element(screen.getByText('3 team members', { exact: false })).toBeVisible();
 		const platform = screen.getByRole('button', { name: 'Inspect Team Platform' });
 		await platform.click();
 		expect(onselect).toHaveBeenCalledWith('child');
@@ -64,7 +71,9 @@ describe('read-only organization chart components', () => {
 		const screen = await render(TeamDetails, { team: child, roots: [root], onselect });
 
 		await expect.element(screen.getByRole('heading', { name: 'Team details' })).toBeVisible();
-		await expect.element(screen.getByText('Morgan Manager')).toBeVisible();
+		await expect.element(screen.getByText('Team members (3)')).toBeVisible();
+		const teamMembers = screen.getByRole('complementary').getByRole('list');
+		await expect.element(teamMembers).toHaveTextContent('Alex MemberMorgan ManagerTaylor Member');
 		expect(
 			screen.getByText('This view is informational.', { exact: false }).elements()
 		).toHaveLength(0);
@@ -72,6 +81,13 @@ describe('read-only organization chart components', () => {
 		expect(onselect).toHaveBeenCalledWith('root');
 		expect(screen.getByRole('link').elements()).toHaveLength(0);
 		expect(screen.getByRole('button', { name: /edit/i }).elements()).toHaveLength(0);
+	});
+
+	it('communicates when a Team has no members', async () => {
+		const screen = await render(TeamDetails, { team: root, roots: [root], onselect: vi.fn() });
+
+		await expect.element(screen.getByText('Team members (0)')).toBeVisible();
+		await expect.element(screen.getByText('No team members')).toBeVisible();
 	});
 
 	it('communicates missing Team context', async () => {

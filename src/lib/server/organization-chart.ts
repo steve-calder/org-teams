@@ -86,7 +86,10 @@ export async function getOrganizationChart(
 		},
 		with: {
 			manager: { columns: { id: true, displayName: true, status: true } },
-			memberships: { columns: { id: true } }
+			memberships: {
+				columns: { personId: true },
+				with: { person: { columns: { id: true, displayName: true } } }
+			}
 		},
 		orderBy: [asc(team.name), asc(team.id)]
 	});
@@ -94,6 +97,14 @@ export async function getOrganizationChart(
 	const nodes = new Map<string, OrganizationChartTeam>();
 	for (const row of rows) {
 		const ordinaryMembershipCount = row.memberships.length;
+		const members = [
+			...(row.manager ? [{ id: row.manager.id, displayName: row.manager.displayName }] : []),
+			...row.memberships.map(({ person: member }) => member)
+		];
+		const uniqueMembers = [...new Map(members.map((member) => [member.id, member])).values()].sort(
+			(left, right) =>
+				left.displayName.localeCompare(right.displayName) || left.id.localeCompare(right.id)
+		);
 		nodes.set(row.id, {
 			id: row.id,
 			name: row.name,
@@ -101,8 +112,9 @@ export async function getOrganizationChart(
 			status: row.status,
 			parentTeamId: row.parentTeamId,
 			manager: row.manager,
+			members: uniqueMembers,
 			ordinaryMembershipCount,
-			participantCount: ordinaryMembershipCount + (row.manager ? 1 : 0),
+			participantCount: uniqueMembers.length,
 			children: []
 		});
 	}

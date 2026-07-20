@@ -16,6 +16,7 @@ const chart: OrganizationChartSummary = {
 			status: 'active',
 			parentTeamId: null,
 			manager: null,
+			members: [],
 			ordinaryMembershipCount: 0,
 			participantCount: 0,
 			children: [
@@ -26,6 +27,11 @@ const chart: OrganizationChartSummary = {
 					status: 'active',
 					parentTeamId: 'engineering',
 					manager: { id: 'manager', displayName: 'Morgan Manager', status: 'active' },
+					members: [
+						{ id: 'member-1', displayName: 'Alex Member' },
+						{ id: 'manager', displayName: 'Morgan Manager' },
+						{ id: 'member-2', displayName: 'Taylor Member' }
+					],
 					ordinaryMembershipCount: 2,
 					participantCount: 3,
 					children: []
@@ -39,6 +45,7 @@ const chart: OrganizationChartSummary = {
 			status: 'inactive',
 			parentTeamId: null,
 			manager: null,
+			members: [],
 			ordinaryMembershipCount: 0,
 			participantCount: 0,
 			children: []
@@ -70,7 +77,14 @@ describe('organization chart page', () => {
 
 		await screen.getByLabelText('Find a Team').fill('Plat');
 		await screen.getByRole('button', { name: 'Platform', exact: true }).click();
-		await expect.element(screen.getByText('Morgan Manager', { exact: true })).toBeVisible();
+		await expect
+			.element(
+				screen
+					.getByRole('complementary')
+					.getByRole('list')
+					.getByText('Morgan Manager', { exact: true })
+			)
+			.toBeVisible();
 		expect(
 			screen
 				.getByRole('link')
@@ -80,9 +94,9 @@ describe('organization chart page', () => {
 		expect(screen.getByRole('button', { name: /edit|delete|move/i }).elements()).toHaveLength(0);
 	});
 
-	it('switches views and applies the inactive lifecycle filter to the tree fallback', async () => {
+	it('switches views and applies the inactive lifecycle filter to the tree view', async () => {
 		const screen = await render(Page, { data } as never);
-		await expect.element(screen.getByText('Accessible hierarchy list')).toBeVisible();
+		expect(screen.getByText('Accessible hierarchy list').elements()).toHaveLength(0);
 		await screen.getByRole('button', { name: 'Tree' }).click();
 		await expect
 			.element(screen.getByRole('heading', { name: 'Team hierarchy tree' }))

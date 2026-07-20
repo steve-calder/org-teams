@@ -106,7 +106,7 @@ Each Team node SHALL present its name, friendly type, lifecycle status, manager 
 #### Scenario: Authenticated user selects a Team node
 
 - **WHEN** an authenticated user selects a Team in the chart
-- **THEN** the Team is visually identified and described in an informational details panel containing its parent, direct children, and summary context without an administration link or editing control
+- **THEN** the Team is visually identified and described in an informational details panel containing its parent, direct children, and every Team member by display name without an administration link or editing control
 - **AND** the system preserves the existing pivot Team, nodes, edges, expansion state, orientation, Dagre positions, viewport, and URL
 
 #### Scenario: Authenticated user pivots from a Team node
@@ -133,6 +133,7 @@ Each Team node SHALL present its name, friendly type, lifecycle status, manager 
 
 - **WHEN** a Team has no manager, no parent, no children, or no participants
 - **THEN** the node and details panel communicate the absent context without inventing relationships
+- **AND** the details panel identifies that the Team has no Team members instead of rendering an empty list
 
 ### Requirement: Progressive hierarchy disclosure
 
@@ -187,7 +188,7 @@ The chart SHALL let authenticated users search Teams by display name across the 
 
 ### Requirement: Navigable and accessible chart experience
 
-The visual chart SHALL provide fit-to-view, zoom, pan, and keyboard-operable inspection, pivot, and disclosure controls and remain usable across supported desktop pointer and keyboard input. Inspection and pivot actions SHALL have distinct accessible names. The experience SHALL also provide a semantic nested-list tree view containing equivalent pivot hierarchy, inspection, disclosure behavior, and summary context, and SHALL preserve that tree as a functional alternative when the interactive canvas is unavailable or unsuitable for the viewport.
+The visual chart SHALL provide fit-to-view, zoom, pan, and keyboard-operable inspection, pivot, and disclosure controls and remain usable across supported desktop pointer and keyboard input. Inspection and pivot actions SHALL have distinct accessible names. The experience SHALL also provide a separately selectable semantic nested-list tree view containing equivalent pivot hierarchy, inspection, disclosure behavior, and summary context.
 
 #### Scenario: Authenticated user navigates a large chart
 
@@ -203,11 +204,6 @@ The visual chart SHALL provide fit-to-view, zoom, pan, and keyboard-operable ins
 
 - **WHEN** keyboard focus reaches a visible Team's inspection, pivot, or subordinate disclosure control
 - **THEN** each action has a distinct accessible name and can be activated without triggering either of the other Team actions
-
-#### Scenario: Interactive chart cannot initialize
-
-- **WHEN** client-side chart rendering is unavailable or fails to initialize
-- **THEN** the server-rendered controls and semantic tree remain available for browsing the selected Organization
 
 #### Scenario: Authenticated user uses a narrow viewport
 

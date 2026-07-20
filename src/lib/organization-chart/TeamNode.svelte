@@ -41,7 +41,7 @@
 			{data.team.manager?.displayName ?? 'None'}
 		</p>
 		<p>
-			<span class="font-medium text-slate-700">Participants:</span>
+			<span class="font-medium text-slate-700">Team members:</span>
 			{data.team.participantCount}
 		</p>
 	</div>

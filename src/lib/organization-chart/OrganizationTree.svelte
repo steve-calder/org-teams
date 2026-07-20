@@ -53,7 +53,7 @@
 						<span class="mt-1 block text-xs text-slate-600">
 							{TEAM_TYPE_LABELS[team.type]} · {team.manager
 								? `Managed by ${team.manager.displayName}`
-								: 'No manager'} · {team.participantCount} participants
+								: 'No manager'} · {team.participantCount} team members
 						</span>
 					</button>
 					<div class="mt-2 flex flex-wrap items-center gap-2">

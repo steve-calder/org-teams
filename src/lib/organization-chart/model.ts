@@ -16,6 +16,11 @@ export interface OrganizationChartManager {
 	status: ChartLifecycleStatus;
 }
 
+export interface OrganizationChartTeamMember {
+	id: string;
+	displayName: string;
+}
+
 export interface OrganizationChartTeam {
 	id: string;
 	name: string;
@@ -23,6 +28,7 @@ export interface OrganizationChartTeam {
 	status: ChartLifecycleStatus;
 	parentTeamId: string | null;
 	manager: OrganizationChartManager | null;
+	members: OrganizationChartTeamMember[];
 	ordinaryMembershipCount: number;
 	participantCount: number;
 	children: OrganizationChartTeam[];
